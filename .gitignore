@@ -4,3 +4,9 @@ contexto/
 # Ignorar dependencias y binarios de Node.js
 node_modules/
 *.node
+
+localstack-init.sh
+start_with_sqs.sh
+backend/app/infrastructure/aws/sqs_client.py
+backend/app/infrastructure/aws/sqs_test.py
+backend/app/infrastructure/aws/__pycache__/sqs_client.cpython-311.pyc

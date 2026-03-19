@@ -1,5 +1,44 @@
 version: '3.8'
 services:
+
+  localstack:
+    image: localstack/localstack:latest
+    container_name: prospera_localstack
+    ports:
+      - "4566:4566"
+    environment:
+      - SERVICES=sqs
+      - AWS_DEFAULT_REGION=us-east-1
+      - LOCALSTACK_AUTH_TOKEN=${LOCALSTACK_AUTH_TOKEN:-}
+    volumes:
+      - ./localstack-init.sh:/etc/localstack/init/ready.d/localstack-init.sh:ro
+      - localstack_data:/var/lib/localstack
+    # Si usas Docker Compose v1 y tienes errores, comenta o elimina el healthcheck
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4566/_localstack/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  sqs-init:
+    image: amazon/aws-cli
+    container_name: prospera_sqs_init
+    environment:
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+      - AWS_DEFAULT_REGION=us-east-1
+    entrypoint: >
+      /bin/sh -c "
+        echo 'Creando cola SQS...' &&
+        aws --endpoint-url=http://localstack:4566 sqs create-queue --queue-name test-queue &&
+        echo 'Cola creada exitosamente' &&
+        aws --endpoint-url=http://localstack:4566 sqs list-queues
+      "
+    depends_on:
+      localstack:
+        condition: service_healthy
+
   backend:
     build:
       context: ./backend
@@ -10,7 +49,17 @@ services:
       - ./backend:/app
     environment:
       - PYTHONUNBUFFERED=1
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-test}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-test}
+      - AWS_REGION=${AWS_REGION:-us-east-1}
+      - SQS_QUEUE_NAME=${SQS_QUEUE_NAME:-test-queue}
+      - SQS_ENDPOINT=http://localstack:4566
     command: ["python", "main.py"]
+    depends_on:
+      localstack:
+        condition: service_healthy
+      sqs-init:
+        condition: service_completed_successfully
 
   frontend:
     build:
@@ -25,3 +74,6 @@ services:
     command: ["npm", "start"]
     depends_on:
       - backend
+
+volumes:
+  localstack_data:
