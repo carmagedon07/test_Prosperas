@@ -59,6 +59,9 @@ export default function JobList({ jobs }) {
           </li>
         </ul>
       </nav>
+        <footer className="text-center mt-4 mb-2 text-muted" style={{fontSize: '0.9rem'}}>
+          &copy; {new Date().getFullYear()} | Desarrollado por Pedro Nel Caro Diaz
+        </footer>
     </>
   );
 }
