@@ -13,7 +13,7 @@ class JobModel(Base):
     user_id = Column(String, nullable=False)
     status = Column(SAEnum(JobStatus), nullable=False)
     report_type = Column(String, nullable=False)
-    date_range = Column(String, nullable=False)
+    date_range = Column(String, nullable=True)
     format = Column(String, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now(), server_default=func.now())

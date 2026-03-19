@@ -3,9 +3,11 @@ from uuid import UUID
 from datetime import datetime
 from ...domain.enums.job_status import JobStatus
 
+from typing import Optional
+
 class JobCreateRequest(BaseModel):
     report_type: str = Field(...)
-    date_range: str = Field(...)
+    date_range: Optional[str] = None
     format: str = Field(...)
 
 class JobResponse(BaseModel):

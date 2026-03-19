@@ -72,12 +72,26 @@ export default function Dashboard() {
   return (
     <>
       <Navbar />
-      <main style={{ maxWidth: 600, margin: '2em auto', padding: '1em' }}>
-        <h1>Mis trabajos</h1>
-        <JobForm onSubmit={handleCreateJob} loading={creating} />
-        {loading ? <Loader /> : <JobList jobs={jobs} />}
-        {error && <div role="alert" style={{ color: 'red', marginTop: '1em' }}>{error}</div>}
-      </main>
+      <div style={{ minHeight: '100vh', background: '#15b6ef', padding: '2em 0' }}>
+        <div className="container" style={{ maxWidth: 900 }}>
+          <div className="card shadow-sm mb-4">
+            <div className="card-body">
+              <h2 className="card-title mb-3" style={{ fontWeight: 'bold' }}>Bienvenido al módulo de procesamiento de reportes</h2>
+              <p className="card-text text-muted mb-0">Aquí puede gestionar y solicitar reportes.</p>
+            </div>
+          </div>
+          <div className="card shadow-sm">
+            <div className="card-body">
+              <div className="d-flex justify-content-start mb-3">
+                <JobForm onSubmit={handleCreateJob} loading={creating} />
+              </div>
+              <h3 className="mb-3">Listado de solicitudes de reportes</h3>
+              {loading ? <Loader /> : <JobList jobs={jobs} />}
+              {error && <div role="alert" className="alert alert-danger mt-3">{error}</div>}
+            </div>
+          </div>
+        </div>
+      </div>
     </>
   );
 }

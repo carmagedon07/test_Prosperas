@@ -25,6 +25,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState(false);
 
   const handleSubmit = async e => {
     e.preventDefault();
@@ -33,24 +34,29 @@ export default function LoginPage() {
     try {
       const data = await apiLogin(userId, password);
       login({ sub: userId, role: data.role }, data.access_token);
+      setSuccess(true);
     } catch (err) {
       if (err.message === 'Failed to fetch') {
         setError('No se pudo conectar con el servidor. Verifica tu conexión o que el backend esté en funcionamiento.');
       } else {
         setError(translateLoginError(err.message));
       }
+      setSuccess(false);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <main style={{ maxWidth: 400, margin: '4em auto', padding: '2em', border: '1px solid #eee', borderRadius: 8 }}>
-      <h1>Iniciar sesión</h1>
-      <form onSubmit={handleSubmit} aria-label="Formulario de login">
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1em' }}>
-          <div>
-            <label htmlFor="userId">Usuario</label><br />
+    <main className="container-fluid" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #cbe6fa 0%, #a3cbe6 100%)' }}>
+      <div className="p-4 bg-white rounded" style={{ boxShadow: '0 4px 16px rgba(0,0,0,0.15)' }}>
+        <h1 className="mb-4">Sistema de gestión de reportes</h1>
+        <div className="alert alert-info mb-4" role="alert">
+          <b>Diligencie usuario y contraseña para ingresar al sistema.</b>
+        </div>
+        <form onSubmit={handleSubmit} aria-label="Formulario de login">
+          <div className="mb-3">
+            <label htmlFor="userId" className="form-label">Usuario</label>
             <input
               id="userId"
               type="text"
@@ -59,11 +65,11 @@ export default function LoginPage() {
               required
               autoFocus
               aria-required="true"
-              style={{ width: '100%' }}
+              className="form-control"
             />
           </div>
-          <div>
-            <label htmlFor="password">Contraseña</label><br />
+          <div className="mb-3">
+            <label htmlFor="password" className="form-label">Contraseña</label>
             <input
               id="password"
               type="password"
@@ -71,16 +77,17 @@ export default function LoginPage() {
               onChange={e => setPassword(e.target.value)}
               required
               aria-required="true"
-              style={{ width: '100%' }}
+              className="form-control"
             />
           </div>
-          <button type="submit" disabled={loading} aria-busy={loading} style={{ marginTop: '1em' }}>
-            {loading ? 'Entrando...' : 'Entrar'}
+          <button type="submit" disabled={loading} aria-busy={loading} className="btn btn-success w-100">
+            {loading ? 'Ingresando...' : 'Ingresar'}
           </button>
-          {error && <div role="alert" style={{ color: 'red', marginTop: '1em' }}>{error}</div>}
-        </div>
-      </form>
-      {loading && <Loader label="Verificando credenciales..." />}
+          {error && <div role="alert" className="alert alert-danger mt-3">{error}</div>}
+          {success && <div role="alert" className="alert alert-success mt-3">Se ingresó de manera exitosa</div>}
+        </form>
+        {loading && <Loader label="Verificando credenciales..." />}
+      </div>
     </main>
   );
 }

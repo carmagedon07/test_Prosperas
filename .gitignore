@@ -1,2 +1,6 @@
 # Ignorar la carpeta #contexto
 contexto/
+
+# Ignorar dependencias y binarios de Node.js
+node_modules/
+*.node

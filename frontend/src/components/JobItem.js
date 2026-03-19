@@ -9,7 +9,7 @@ export default function JobItem({ job }) {
           <strong>Tipo de reporte:</strong> {job.report_type}<br />
           <strong>Rango de fechas:</strong> {job.date_range}<br />
           <strong>Formato:</strong> {job.format}<br />
-          <span style={{ fontSize: '0.9em', color: '#666' }}>Creado: {new Date(job.created_at).toLocaleString('es-ES')}</span>
+          <span style={{ fontSize: '0.9em', color: '#666' }}><b>Fecha de solicitud:</b> {new Date(job.created_at).toLocaleString('es-ES')}</span>
         </div>
         <JobStatus status={job.status} />
       </div>
