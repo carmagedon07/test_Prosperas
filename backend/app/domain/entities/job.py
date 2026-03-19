@@ -7,6 +7,8 @@ class Job:
         self,
         user_id: str,
         report_type: str,
+        date_range: str,
+        format: str,
         status: JobStatus = JobStatus.PENDING,
         created_at: datetime = None,
         updated_at: datetime = None,
@@ -17,6 +19,8 @@ class Job:
         self.user_id = user_id
         self.status = status
         self.report_type = report_type
+        self.date_range = date_range
+        self.format = format
         self.created_at = created_at or datetime.utcnow()
         self.updated_at = updated_at or self.created_at
         self.result_url = result_url

@@ -20,7 +20,12 @@ def create_job(
     request: JobCreateRequest,
     current_user: dict = Depends(get_current_user)
 ):
-    job = create_job_use_case.execute(user_id=current_user["id"], report_type=request.report_type)
+    job = create_job_use_case.execute(
+        user_id=current_user["id"],
+        report_type=request.report_type,
+        date_range=request.date_range,
+        format=request.format
+    )
     return JobResponse(**job.__dict__)
 
 @router.get("/jobs/{job_id}", response_model=JobResponse)
@@ -41,4 +46,5 @@ def list_jobs(
     offset: int = Query(0, ge=0)
 ):
     jobs = list_jobs_use_case.execute(user_id=current_user["id"], limit=limit, offset=offset)
-    return JobListResponse(jobs=[JobResponse(**job.__dict__) for job in jobs])
+    jobs_list = [JobResponse(**job.__dict__) for job in jobs] if jobs else []
+    return JobListResponse(jobs=jobs_list)

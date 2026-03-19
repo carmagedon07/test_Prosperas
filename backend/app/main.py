@@ -12,11 +12,22 @@ from .infrastructure.db.session import Base, engine
 from .worker.fake_worker import start_fake_worker
 from .application.use_cases.create_job import CreateJobUseCase
 from .infrastructure.repositories.job_repository_sqlalchemy import JobRepositorySQLAlchemy
+from fastapi.middleware.cors import CORSMiddleware
 
 # Crear tablas
 Base.metadata.create_all(bind=engine)
 
+
 app = FastAPI()
+
+# Configuración de CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Cambia esto a los orígenes permitidos en producción
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Registrar rutas
 app.include_router(auth.router)

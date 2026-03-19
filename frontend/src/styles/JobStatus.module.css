@@ -1,0 +1,21 @@
+.status {
+  display: flex;
+  align-items: center;
+  font-weight: 500;
+  gap: 0.5em;
+}
+.status-pending {
+  color: #bfa500;
+}
+.status-processing {
+  color: #007bff;
+}
+.status-completed {
+  color: #28a745;
+}
+.status-failed {
+  color: #dc3545;
+}
+.icon {
+  font-size: 1.2em;
+}
