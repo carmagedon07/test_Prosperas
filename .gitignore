@@ -1,12 +1,123 @@
-# Ignorar la carpeta #contexto
-contexto/
+# ============================================
+# PROSPERA PROJECT - .gitignore
+# ============================================
 
-# Ignorar dependencias y binarios de Node.js
+# ============================================
+# Python
+# ============================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+*.manifest
+*.spec
+pip-log.txt
+pip-delete-this-directory.txt
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+.hypothesis/
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pyre/
+.pytype/
+venv/
+ENV/
+env/
+.venv
+*.db
+
+# ============================================
+# Node.js / React
+# ============================================
 node_modules/
-*.node
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+/frontend/build
+/frontend/.env.local
+/frontend/.env.development.local
+/frontend/.env.test.local
+/frontend/.env.production.local
 
-localstack-init.sh
-start_with_sqs.sh
-backend/app/infrastructure/aws/sqs_client.py
-backend/app/infrastructure/aws/sqs_test.py
-backend/app/infrastructure/aws/__pycache__/sqs_client.cpython-311.pyc
+# ============================================
+# Docker / LocalStack
+# ============================================
+localstack-data/
+localstack-init/
+*.db.backup
+
+# ============================================
+# Environment Variables & Secrets
+# ============================================
+.env
+.env.local
+.env.*.local
+*.key
+*.pem
+*.crt
+*.csr
+secrets/
+
+# ============================================
+# IDE / Editors
+# ============================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
+*.sublime-project
+
+# ============================================
+# OS
+# ============================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# ============================================
+# Logs
+# ============================================
+*.log
+logs/
+*.log.*
+
+# ============================================
+# Project Specific
+# ============================================
+contexto/

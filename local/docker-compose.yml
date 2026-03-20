@@ -48,7 +48,7 @@ services:
 
   users-init:
     build:
-      context: ./backend
+      context: ../backend
     container_name: prospera_users_init
     environment:
       - AWS_ACCESS_KEY_ID=test
@@ -64,12 +64,12 @@ services:
 
   backend:
     build:
-      context: ./backend
+      context: ../backend
     container_name: prospera_backend
     ports:
       - "8000:8000"
     volumes:
-      - ./backend:/app
+      - ../backend:/app
     environment:
       - PYTHONUNBUFFERED=1
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-test}
@@ -91,12 +91,12 @@ services:
 
   worker_1:
     build:
-      context: .
+      context: ..
       dockerfile: ./worker/Dockerfile
     container_name: prospera_worker_1
     volumes:
-      - ./backend:/app/backend
-      - ./worker:/app/worker
+      - ../backend:/app/backend
+      - ../worker:/app/worker
     environment:
       - PYTHONUNBUFFERED=1
       - WORKER_INSTANCE_ID=WORKER_1
@@ -117,12 +117,12 @@ services:
 
   worker_2:
     build:
-      context: .
+      context: ..
       dockerfile: ./worker/Dockerfile
     container_name: prospera_worker_2
     volumes:
-      - ./backend:/app/backend
-      - ./worker:/app/worker
+      - ../backend:/app/backend
+      - ../worker:/app/worker
     environment:
       - PYTHONUNBUFFERED=1
       - WORKER_INSTANCE_ID=WORKER_2
@@ -143,12 +143,12 @@ services:
 
   frontend:
     build:
-      context: ./frontend
+      context: ../frontend
     container_name: prospera_frontend
     ports:
       - "3000:3000"
     volumes:
-      - ./frontend:/app
+      - ../frontend:/app
     environment:
       - CHOKIDAR_USEPOLLING=true
     command: ["npm", "start"]
