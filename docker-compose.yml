@@ -67,16 +67,41 @@ services:
       sqs-init:
         condition: service_completed_successfully
 
-  worker:
+  worker_1:
     build:
       context: .
       dockerfile: ./worker/Dockerfile
-    container_name: prospera_worker
+    container_name: prospera_worker_1
     volumes:
       - ./backend:/app/backend
       - ./worker:/app/worker
     environment:
       - PYTHONUNBUFFERED=1
+      - WORKER_INSTANCE_ID=WORKER_1
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-test}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-test}
+      - AWS_REGION=${AWS_REGION:-us-east-1}
+      - SQS_QUEUE_NAME=${SQS_QUEUE_NAME:-test-queue}
+      - SQS_ENDPOINT=http://localstack:4566
+      - DYNAMODB_ENDPOINT=http://localstack:4566
+      - DYNAMODB_TABLE_NAME=${DYNAMODB_TABLE_NAME:-jobs}
+    depends_on:
+      localstack:
+        condition: service_healthy
+      sqs-init:
+        condition: service_completed_successfully
+
+  worker_2:
+    build:
+      context: .
+      dockerfile: ./worker/Dockerfile
+    container_name: prospera_worker_2
+    volumes:
+      - ./backend:/app/backend
+      - ./worker:/app/worker
+    environment:
+      - PYTHONUNBUFFERED=1
+      - WORKER_INSTANCE_ID=WORKER_2
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-test}
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-test}
       - AWS_REGION=${AWS_REGION:-us-east-1}

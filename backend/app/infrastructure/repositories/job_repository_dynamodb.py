@@ -104,6 +104,23 @@ class JobRepositoryDynamoDB(JobRepository):
             ExpressionAttributeValues=expr_attr_values
         )
 
+    def delete_all(self) -> int:
+        """Delete all jobs from the table. Returns count of deleted items."""
+        response = self.table.scan()
+        items = response.get('Items', [])
+        
+        # Handle pagination if there are more items
+        while 'LastEvaluatedKey' in response:
+            response = self.table.scan(ExclusiveStartKey=response['LastEvaluatedKey'])
+            items.extend(response.get('Items', []))
+        
+        count = 0
+        for item in items:
+            self.table.delete_item(Key={'job_id': item['job_id']})
+            count += 1
+        
+        return count
+
     def _to_domain(self, item: dict) -> Job:
         return Job(
             job_id=UUID(item['job_id']),

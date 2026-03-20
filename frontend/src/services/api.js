@@ -49,3 +49,16 @@ export async function getJobById(token, job_id) {
   if (!res.ok) throw new Error('Error al obtener el job');
   return res.json();
 }
+
+export async function deleteAllJobs(token) {
+  const res = await fetch(`${API_URL}/jobs`, {
+    method: 'DELETE',
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
+  if (!res.ok) {
+    const error = new Error('Error al eliminar los jobs');
+    error.status = res.status;
+    throw error;
+  }
+  return res.json();
+}

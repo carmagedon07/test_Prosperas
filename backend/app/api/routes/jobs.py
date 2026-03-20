@@ -4,6 +4,7 @@ from ...api.schemas.job import JobCreateRequest, JobResponse, JobListResponse
 from ...application.use_cases.create_job import CreateJobUseCase
 from ...application.use_cases.get_job import GetJobUseCase
 from ...application.use_cases.list_jobs import ListJobsUseCase
+from ...application.use_cases.delete_all_jobs import DeleteAllJobsUseCase
 from ...infrastructure.repositories.job_repository_dynamodb import JobRepositoryDynamoDB
 from ..dependencies import get_current_user, require_admin
 
@@ -14,6 +15,7 @@ job_repository = JobRepositoryDynamoDB()
 create_job_use_case = CreateJobUseCase(job_repository)
 get_job_use_case = GetJobUseCase(job_repository)
 list_jobs_use_case = ListJobsUseCase(job_repository)
+delete_all_jobs_use_case = DeleteAllJobsUseCase(job_repository)
 
 @router.post("/jobs", response_model=JobResponse, status_code=201)
 def create_job(
@@ -82,3 +84,9 @@ def list_jobs(
     jobs = list_jobs_use_case.execute(user_id=current_user["id"], limit=limit, offset=offset)
     jobs_list = [JobResponse(**job.__dict__) for job in jobs] if jobs else []
     return JobListResponse(jobs=jobs_list)
+
+@router.delete("/jobs", status_code=200, dependencies=[Depends(require_admin)])
+def delete_all_jobs(current_user: dict = Depends(get_current_user)):
+    """Delete all jobs from DynamoDB. Requires admin privileges."""
+    count = delete_all_jobs_use_case.execute()
+    return {"message": f"Successfully deleted {count} jobs", "count": count}

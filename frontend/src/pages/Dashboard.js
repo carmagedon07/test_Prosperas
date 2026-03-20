@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { createJob, getJobs } from '../services/api';
+import { createJob, getJobs, deleteAllJobs } from '../services/api';
 import JobList from '../components/JobList';
 import JobForm from '../components/JobForm';
 import Loader from '../components/Loader';
@@ -58,6 +58,24 @@ export default function Dashboard() {
     }
   };
 
+  const handleDeleteAll = async () => {
+    const confirmed = window.confirm('¿Está seguro que desea eliminar TODOS los trabajos? Esta acción no se puede deshacer.');
+    if (!confirmed) return;
+
+    try {
+      const result = await deleteAllJobs(token);
+      alert(`Se eliminaron ${result.count} trabajos exitosamente`);
+      await fetchJobs();
+    } catch (err) {
+      const isForbidden = (err && err.status === 403);
+      if (isForbidden) {
+        alert('No tienes permisos de administrador para eliminar todos los trabajos');
+      } else {
+        alert('Error al eliminar los trabajos');
+      }
+    }
+  };
+
   if (error === 'NO_AUTH') {
     return (
       <>
@@ -82,8 +100,15 @@ export default function Dashboard() {
           </div>
           <div className="card shadow-sm">
             <div className="card-body">
-              <div className="d-flex justify-content-start mb-3">
+              <div className="d-flex justify-content-between align-items-center mb-3">
                 <JobForm onSubmit={handleCreateJob} loading={creating} />
+                <button 
+                  className="btn btn-danger btn-sm"
+                  onClick={handleDeleteAll}
+                  style={{ height: 'fit-content' }}
+                >
+                  🗑️ Limpiar Tabla
+                </button>
               </div>
               <h3 className="mb-3">Listado de solicitudes de reportes</h3>
               {loading ? <Loader /> : <JobList jobs={jobs} />}

@@ -49,22 +49,23 @@ def wait_for_queue(sqs_client, queue_url, timeout=60):
 
 
 def process_job(job_id: str):
+    instance_id = os.getenv('WORKER_INSTANCE_ID', 'default')
     job_repository = JobRepositoryDynamoDB()
     update_status_use_case = UpdateJobStatusUseCase(job_repository)
     try:
         update_status_use_case.execute(UUID(job_id), JobStatus.PROCESSING)
-        print(f"[WORKER] Procesando job_id: {job_id} (esperando 60s)")
+        print(f"[{instance_id}] Procesando job_id: {job_id} (esperando 60s)")
         time.sleep(60)
         # Aleatoriamente COMPLETED o FAILED
         if random.choice([True, False]):
             result_url = f"https://dummy.result/{job_id}"
             update_status_use_case.execute(UUID(job_id), JobStatus.COMPLETED, result_url=result_url)
-            print(f"[WORKER] job_id: {job_id} COMPLETED")
+            print(f"[{instance_id}] job_id: {job_id} COMPLETED")
         else:
             update_status_use_case.execute(UUID(job_id), JobStatus.FAILED, error_msg="Error simulado")
-            print(f"[WORKER] job_id: {job_id} FAILED")
+            print(f"[{instance_id}] job_id: {job_id} FAILED")
     except Exception as e:
-        print(f"[WORKER] Error procesando job {job_id}: {e}")
+        print(f"[{instance_id}] Error procesando job {job_id}: {e}")
         try:
             update_status_use_case.execute(UUID(job_id), JobStatus.FAILED, error_msg=str(e))
         except:
@@ -72,15 +73,16 @@ def process_job(job_id: str):
 
 
 def worker_loop():
-    print("SQS Worker iniciado. Esperando mensajes...")
+    instance_id = os.getenv('WORKER_INSTANCE_ID', 'default')
+    print(f"[{instance_id}] SQS Worker iniciado. Esperando mensajes...")
     while True:
         response = sqs.receive_message(
             QueueUrl=AWS_SQS_QUEUE_URL,
-            MaxNumberOfMessages=2,  # Procesar hasta 2 mensajes a la vez
-            WaitTimeSeconds=10
+            MaxNumberOfMessages=1,  # Procesar 1 mensaje a la vez
+            WaitTimeSeconds=10,
+            VisibilityTimeout=120  # 120 segundos para evitar reprocesamiento
         )
         messages = response.get("Messages", [])
-        threads = []
         for msg in messages:
             try:
                 body = msg["Body"]
@@ -90,21 +92,20 @@ def worker_loop():
                     job_id = data["job_id"]
                 except Exception:
                     job_id = body
+                # Procesar en un thread
                 t = threading.Thread(target=process_job, args=(job_id,))
                 t.start()
-                threads.append((t, msg["ReceiptHandle"]))
+                t.join()  # Esperar a que termine
+                # Borrar mensaje después de procesarlo
+                try:
+                    sqs.delete_message(
+                        QueueUrl=AWS_SQS_QUEUE_URL,
+                        ReceiptHandle=msg["ReceiptHandle"]
+                    )
+                except Exception as e:
+                    print(f"[{instance_id}] Error eliminando mensaje: {e}")
             except Exception as e:
-                print(f"Error procesando mensaje: {e}")
-        # Esperar a que terminen los threads y luego borrar los mensajes
-        for t, receipt_handle in threads:
-            t.join()
-            try:
-                sqs.delete_message(
-                    QueueUrl=AWS_SQS_QUEUE_URL,
-                    ReceiptHandle=receipt_handle
-                )
-            except Exception as e:
-                print(f"Error eliminando mensaje: {e}")
+                print(f"[{instance_id}] Error procesando mensaje: {e}")
         time.sleep(1)
 
 
