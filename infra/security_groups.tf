@@ -29,7 +29,7 @@ resource "aws_security_group" "alb" {
 
 resource "aws_security_group" "backend" {
   name        = "${var.project_name}-backend-sg"
-  description = "Backend ECS — accepts traffic only from ALB"
+  description = "Backend ECS - accepts traffic only from ALB"
   vpc_id      = data.aws_vpc.default.id
 
   ingress {
@@ -56,7 +56,7 @@ resource "aws_security_group" "backend" {
 
 resource "aws_security_group" "worker" {
   name        = "${var.project_name}-worker-sg"
-  description = "Worker ECS — outbound only (SQS + DynamoDB)"
+  description = "Worker ECS - outbound only (SQS + DynamoDB)"
   vpc_id      = data.aws_vpc.default.id
 
   egress {

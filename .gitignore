@@ -118,6 +118,18 @@ logs/
 *.log.*
 
 # ============================================
+# Terraform
+# ============================================
+infra/.terraform/
+infra/.terraform.lock.hcl
+infra/*.tfplan
+infra/tfplan
+infra/plan_output.txt
+infra/terraform.tfvars
+infra/terraform.tfstate
+infra/terraform.tfstate.backup
+
+# ============================================
 # Project Specific
 # ============================================
 contexto/

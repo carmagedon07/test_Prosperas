@@ -4,8 +4,8 @@
 
 **Prueba técnica · Prosperas · 2025**
 
-> **URL de producción:** `https://<cloudfront-distribution>.cloudfront.net`  
-> *(disponible tras aplicar `terraform apply` y el primer deploy del pipeline)*
+> **URL de producción (Frontend):** [`https://d251z6g0rftk7e.cloudfront.net`](https://d251z6g0rftk7e.cloudfront.net)  
+> **URL de producción (API):** `http://prosperas-alb-114099526.us-east-1.elb.amazonaws.com`
 
 ---
 
