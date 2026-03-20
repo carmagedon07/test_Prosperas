@@ -1,5 +1,22 @@
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
+export async function register(user_id, password) {
+  const res = await fetch(`${API_URL}/auth/register`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ user_id, password })
+  });
+  if (!res.ok) {
+    let message = 'Error al registrar usuario';
+    try {
+      const data = await res.json();
+      if (data && data.detail) message = data.detail;
+    } catch {}
+    throw new Error(message);
+  }
+  return res.json();
+}
+
 export async function login(user_id, password) {
   const res = await fetch(`${API_URL}/auth/login`, {
     method: 'POST',

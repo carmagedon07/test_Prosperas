@@ -15,6 +15,21 @@ class UserRepositoryDynamoDB:
         )
         self.table = self.dynamodb.Table(os.getenv('USERS_TABLE_NAME', 'users'))
 
+    def exists(self, user_id: str) -> bool:
+        """Retorna True si el user_id ya está registrado."""
+        try:
+            response = self.table.get_item(Key={'user_id': user_id})
+            return 'Item' in response
+        except Exception:
+            return False
+
+    def create_user(self, user_id: str, password: str, role: str = 'user') -> dict:
+        """Crea un nuevo usuario con la contraseña hasheada. Retorna el dict del usuario."""
+        pw_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+        item = {'user_id': user_id, 'password_hash': pw_hash, 'role': role}
+        self.table.put_item(Item=item)
+        return {'user_id': user_id, 'role': role}
+
     def authenticate(self, user_id: str, password: str) -> Optional[dict]:
         """
         Verifica credenciales contra la tabla DynamoDB de usuarios.
