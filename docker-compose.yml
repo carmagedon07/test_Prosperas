@@ -35,13 +35,32 @@ services:
         echo 'Cola SQS creada exitosamente' &&
         echo 'Creando tabla DynamoDB jobs...' &&
         aws --endpoint-url=http://localstack:4566 dynamodb create-table --table-name jobs --attribute-definitions AttributeName=job_id,AttributeType=S AttributeName=user_id,AttributeType=S --key-schema AttributeName=job_id,KeyType=HASH --global-secondary-indexes 'IndexName=UserIdIndex,KeySchema=[{AttributeName=user_id,KeyType=HASH}],Projection={ProjectionType=ALL},ProvisionedThroughput={ReadCapacityUnits=5,WriteCapacityUnits=5}' --provisioned-throughput ReadCapacityUnits=5,WriteCapacityUnits=5 &&
-        echo 'Tabla DynamoDB creada exitosamente' &&
+        echo 'Tabla jobs creada exitosamente' &&
+        echo 'Creando tabla DynamoDB users...' &&
+        aws --endpoint-url=http://localstack:4566 dynamodb create-table --table-name users --attribute-definitions AttributeName=user_id,AttributeType=S --key-schema AttributeName=user_id,KeyType=HASH --provisioned-throughput ReadCapacityUnits=5,WriteCapacityUnits=5 &&
+        echo 'Tabla users creada exitosamente' &&
         aws --endpoint-url=http://localstack:4566 sqs list-queues &&
         aws --endpoint-url=http://localstack:4566 dynamodb list-tables
       "
     depends_on:
       localstack:
         condition: service_healthy
+
+  users-init:
+    build:
+      context: ./backend
+    container_name: prospera_users_init
+    environment:
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+      - AWS_REGION=us-east-1
+      - DYNAMODB_ENDPOINT=http://localstack:4566
+    command: ["python", "-m", "app.infrastructure.db.init_users"]
+    depends_on:
+      localstack:
+        condition: service_healthy
+      sqs-init:
+        condition: service_completed_successfully
 
   backend:
     build:
@@ -60,11 +79,14 @@ services:
       - SQS_ENDPOINT=http://localstack:4566
       - DYNAMODB_ENDPOINT=http://localstack:4566
       - DYNAMODB_TABLE_NAME=${DYNAMODB_TABLE_NAME:-jobs}
+      - USERS_TABLE_NAME=${USERS_TABLE_NAME:-users}
     command: ["python", "main.py"]
     depends_on:
       localstack:
         condition: service_healthy
       sqs-init:
+        condition: service_completed_successfully
+      users-init:
         condition: service_completed_successfully
 
   worker_1:
@@ -90,6 +112,8 @@ services:
         condition: service_healthy
       sqs-init:
         condition: service_completed_successfully
+      users-init:
+        condition: service_completed_successfully
 
   worker_2:
     build:
@@ -113,6 +137,8 @@ services:
       localstack:
         condition: service_healthy
       sqs-init:
+        condition: service_completed_successfully
+      users-init:
         condition: service_completed_successfully
 
   frontend:

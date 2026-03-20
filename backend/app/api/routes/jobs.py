@@ -73,7 +73,7 @@ def get_job(
     except ValueError:
         raise HTTPException(status_code=404, detail="Job not found")
 
-@router.get("/jobs", response_model=JobListResponse, dependencies=[Depends(require_admin)])
+@router.get("/jobs", response_model=JobListResponse)
 def list_jobs(
     current_user: dict = Depends(get_current_user),
     limit: int = Query(10, ge=1, le=100),

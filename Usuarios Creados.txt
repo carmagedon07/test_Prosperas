@@ -1,0 +1,5 @@
+Usuarios Creados
+Usuario	Contraseña	Rol
+superadmin	superpassword	admin
+user1	password123	user
+user2	password456	user

@@ -1,6 +1,7 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from ...core.security import create_access_token
+from ...infrastructure.repositories.user_repository_dynamodb import UserRepositoryDynamoDB
 
 router = APIRouter()
 
@@ -12,13 +13,20 @@ class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
 
+# Initialize user repository
+user_repository = UserRepositoryDynamoDB()
+
 @router.post("/auth/login", response_model=TokenResponse)
 def login(request: LoginRequest):
-    # Validación simple de credenciales
-    if request.user_id == "superadmin":
-        if request.password != "superpassword":
-            from fastapi import HTTPException
-            raise HTTPException(status_code=401, detail="Invalid credentials")
-    # Para otros usuarios, puedes aceptar cualquier password (o agregar más reglas)
-    token = create_access_token(user_id=request.user_id)
+    """
+    Authenticate user against DynamoDB users table
+    """
+    # Authenticate user
+    user = user_repository.authenticate(request.user_id, request.password)
+    
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+    
+    # Generate JWT token
+    token = create_access_token(user_id=user['user_id'])
     return TokenResponse(access_token=token)

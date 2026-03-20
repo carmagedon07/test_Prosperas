@@ -3,3 +3,4 @@ uvicorn
 pydantic
 python-jose[cryptography]
 boto3
+bcrypt

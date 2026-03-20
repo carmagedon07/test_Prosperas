@@ -26,17 +26,7 @@ export default function Dashboard() {
       setJobs(data.jobs || []);
       setError('');
     } catch (err) {
-      // Manejo robusto de error 403
-      const msg = (err && err.message) ? err.message : '';
-      const isForbidden = (err && err.status === 403) ||
-        msg.includes('403') ||
-        msg.toLowerCase().includes('admin privileges required') ||
-        (err && err.detail && typeof err.detail === 'string' && err.detail.toLowerCase().includes('admin privileges required'));
-      if (isForbidden) {
-        setError('NO_AUTH');
-      } else {
-        setError('Error al obtener los trabajos');
-      }
+      setError('Error al obtener los trabajos');
     } finally {
       setLoading(false);
     }
@@ -78,17 +68,6 @@ export default function Dashboard() {
     }
   };
 
-  if (error === 'NO_AUTH') {
-    return (
-      <>
-        <Navbar />
-        <main style={{ maxWidth: 600, margin: '2em auto', padding: '1em', textAlign: 'center' }}>
-          <h1>Acceso no autorizado</h1>
-          <p>No tienes permisos para ver esta sección.</p>
-        </main>
-      </>
-    );
-  }
   return (
     <>
       <Navbar />
