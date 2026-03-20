@@ -7,7 +7,7 @@ from typing import Optional
 
 class JobCreateRequest(BaseModel):
     report_type: str = Field(...)
-    date_range: Optional[str] = None
+    date_range: str = Field(..., description="Date range in format: YYYY-MM-DD to YYYY-MM-DD")
     format: str = Field(...)
 
 class JobResponse(BaseModel):

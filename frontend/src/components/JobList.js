@@ -24,6 +24,8 @@ export default function JobList({ jobs }) {
         <table className="table table-striped align-middle">
           <thead>
             <tr>
+              <th>#</th>
+              <th>Job ID</th>
               <th>Tipo de reporte</th>
               {/* <th>Rango de fechas</th> */}
               <th>Formato</th>
@@ -32,8 +34,22 @@ export default function JobList({ jobs }) {
             </tr>
           </thead>
           <tbody>
-            {jobsToShow.map(job => (
+            {jobsToShow.map((job, index) => (
               <tr key={job.job_id}>
+                <td><strong>{startIdx + index + 1}</strong></td>
+                <td>
+                  <span 
+                    style={{ 
+                      fontFamily: 'monospace', 
+                      fontSize: '0.75em',
+                      wordBreak: 'break-all',
+                      cursor: 'help'
+                    }}
+                    title={`Job ID: ${job.job_id}`}
+                  >
+                    {job.job_id}
+                  </span>
+                </td>
                 <td>{job.report_type}</td>
                 {/* <td>{job.date_range}</td> */}
                 <td>{job.format}</td>

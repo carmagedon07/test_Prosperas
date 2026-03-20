@@ -22,16 +22,14 @@ def create_job(
     request: JobCreateRequest,
     current_user: dict = Depends(get_current_user)
 ):
-    from datetime import datetime
     import boto3
     import os
     import json
     
-    date_range = request.date_range or datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     job = create_job_use_case.execute(
         user_id=current_user["id"],
         report_type=request.report_type,
-        date_range=date_range,
+        date_range=request.date_range,
         format=request.format
     )
     

@@ -46,7 +46,11 @@ export async function getJobById(token, job_id) {
   const res = await fetch(`${API_URL}/jobs/${job_id}`, {
     headers: { 'Authorization': `Bearer ${token}` }
   });
-  if (!res.ok) throw new Error('Error al obtener el job');
+  if (!res.ok) {
+    const error = new Error(res.status === 404 ? 'Job not found' : 'Error al obtener el job');
+    error.status = res.status;
+    throw error;
+  }
   return res.json();
 }
 

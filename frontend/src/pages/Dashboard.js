@@ -6,6 +6,7 @@ import JobForm from '../components/JobForm';
 import Loader from '../components/Loader';
 import usePolling from '../hooks/usePolling';
 import Navbar from '../components/Navbar';
+import JobDetailModal from '../components/JobDetailModal';
 
 function allJobsFinished(jobs) {
   return jobs.length > 0 && jobs.every(j => j.status === 'COMPLETED' || j.status === 'FAILED');
@@ -17,6 +18,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState('');
+  const [showSearchModal, setShowSearchModal] = useState(false);
 
   const fetchJobs = useCallback(async () => {
     try {
@@ -102,13 +104,22 @@ export default function Dashboard() {
             <div className="card-body">
               <div className="d-flex justify-content-between align-items-center mb-3">
                 <JobForm onSubmit={handleCreateJob} loading={creating} />
-                <button 
-                  className="btn btn-danger btn-sm"
-                  onClick={handleDeleteAll}
-                  style={{ height: 'fit-content' }}
-                >
-                  🗑️ Limpiar Tabla
-                </button>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <button 
+                    className="btn btn-info btn-sm"
+                    onClick={() => setShowSearchModal(true)}
+                    style={{ height: 'fit-content' }}
+                  >
+                    🔍 Buscar por ID
+                  </button>
+                  <button 
+                    className="btn btn-danger btn-sm"
+                    onClick={handleDeleteAll}
+                    style={{ height: 'fit-content' }}
+                  >
+                    🗑️ Limpiar Tabla
+                  </button>
+                </div>
               </div>
               <h3 className="mb-3">Listado de solicitudes de reportes</h3>
               {loading ? <Loader /> : <JobList jobs={jobs} />}
@@ -117,6 +128,11 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+      <JobDetailModal 
+        show={showSearchModal} 
+        onClose={() => setShowSearchModal(false)} 
+        token={token} 
+      />
     </>
   );
 }
