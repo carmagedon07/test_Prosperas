@@ -28,7 +28,9 @@ services:
 
   # ── Inicializar recursos AWS (SQS + DynamoDB) ─────────────
   aws-init:
-    image: amazon/aws-cli:latest
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
     container_name: aws-init
     depends_on:
       localstack:
@@ -38,8 +40,8 @@ services:
       - AWS_SECRET_ACCESS_KEY=test
       - AWS_DEFAULT_REGION=us-east-1
     volumes:
-      - ./init-localstack.sh:/init/init-aws.sh
-    entrypoint: ["/bin/sh", "/init/init-aws.sh"]
+      - ./init_aws.py:/init/init_aws.py:ro
+    entrypoint: ["python", "/init/init_aws.py"]
     restart: "no"
     networks:
       - app-net

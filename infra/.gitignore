@@ -1,0 +1,19 @@
+# Terraform state — nunca commitear
+*.tfstate
+*.tfstate.*
+*.tfstate.backup
+
+# Archivo de variables con secretos
+terraform.tfvars
+
+# Directorio de trabajo de Terraform
+.terraform/
+.terraform.lock.hcl
+
+# Outputs locales
+*.json
+crash.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json

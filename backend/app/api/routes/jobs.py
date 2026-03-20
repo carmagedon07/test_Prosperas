@@ -37,14 +37,14 @@ def create_job(
     try:
         sqs = boto3.client(
             'sqs',
-            endpoint_url=os.getenv('SQS_ENDPOINT', 'http://localstack:4566'),
+            endpoint_url=os.getenv('SQS_ENDPOINT') or None,
             region_name=os.getenv('AWS_REGION', 'us-east-1'),
             aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID', 'test'),
             aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY', 'test')
         )
-        
-        queue_url_response = sqs.get_queue_url(QueueName=os.getenv('SQS_QUEUE_NAME', 'test-queue'))
-        queue_url = queue_url_response['QueueUrl']
+
+        queue_url = os.getenv('SQS_QUEUE_URL') or \
+            sqs.get_queue_url(QueueName=os.getenv('SQS_QUEUE_NAME', 'jobs-queue'))['QueueUrl']
         
         message = {
             'job_id': str(job.job_id),

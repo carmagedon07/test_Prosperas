@@ -1,0 +1,10 @@
+# Copia este archivo a terraform.tfvars y completa los valores.
+# NUNCA commitees terraform.tfvars — tiene secretos.
+
+aws_region   = "us-east-1"
+project_name = "prosperas"
+image_tag    = "latest"
+
+# JWT secret: genera uno fuerte con: openssl rand -hex 32
+jwt_secret         = "CAMBIA_ESTO_por_un_secreto_seguro"
+jwt_expiry_minutes = 60

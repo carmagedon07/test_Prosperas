@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from .api.routes import jobs
 from .api.routes import auth
+from .api.routes import health
 from .api.exception_handlers import (
     validation_exception_handler,
     http_exception_handler,
@@ -23,6 +24,7 @@ app.add_middleware(
 )
 
 # Registrar rutas
+app.include_router(health.router)
 app.include_router(auth.router)
 app.include_router(jobs.router)
 

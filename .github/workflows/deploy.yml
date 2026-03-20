@@ -1,0 +1,171 @@
+name: Deploy to AWS
+
+on:
+  push:
+    branches: [main]
+
+env:
+  AWS_REGION: us-east-1
+  ECS_CLUSTER: prosperas-cluster
+  ECS_BACKEND_SERVICE: prosperas-backend
+  ECS_WORKER_SERVICE: prosperas-worker
+
+jobs:
+  # ── 1. Tests del backend ──────────────────────────────────────────
+  test:
+    name: Backend Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install -r backend/requirements.txt
+
+      - name: Run tests
+        run: |
+          cd backend
+          python -m pytest tests/ -v --tb=short
+        env:
+          JOBS_TABLE_NAME: jobs
+          USERS_TABLE_NAME: users
+          SQS_QUEUE_NAME: jobs-queue
+          JWT_SECRET: test-secret-for-ci
+          AWS_DEFAULT_REGION: us-east-1
+
+  # ── 2. Build y push imágenes Docker a ECR ────────────────────────
+  build-and-push:
+    name: Build & Push Docker Images
+    runs-on: ubuntu-latest
+    needs: test
+    outputs:
+      image-tag: ${{ steps.tag.outputs.tag }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set image tag (short SHA)
+        id: tag
+        run: echo "tag=${GITHUB_SHA::8}" >> $GITHUB_OUTPUT
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build & push backend image
+        run: |
+          TAG=${{ steps.tag.outputs.tag }}
+          docker build -t ${{ secrets.ECR_BACKEND_REPO }}:$TAG \
+                       -t ${{ secrets.ECR_BACKEND_REPO }}:latest \
+                       ./backend
+          docker push ${{ secrets.ECR_BACKEND_REPO }}:$TAG
+          docker push ${{ secrets.ECR_BACKEND_REPO }}:latest
+
+      - name: Build & push worker image
+        run: |
+          TAG=${{ steps.tag.outputs.tag }}
+          docker build -t ${{ secrets.ECR_WORKER_REPO }}:$TAG \
+                       -t ${{ secrets.ECR_WORKER_REPO }}:latest \
+                       -f worker/Dockerfile .
+          docker push ${{ secrets.ECR_WORKER_REPO }}:$TAG
+          docker push ${{ secrets.ECR_WORKER_REPO }}:latest
+
+  # ── 3. Deploy backend + worker en ECS ────────────────────────────
+  deploy-backend:
+    name: Deploy ECS Services
+    runs-on: ubuntu-latest
+    needs: build-and-push
+
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Force new deployment — backend
+        run: |
+          aws ecs update-service \
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --service ${{ env.ECS_BACKEND_SERVICE }} \
+            --force-new-deployment \
+            --region ${{ env.AWS_REGION }}
+
+      - name: Force new deployment — worker
+        run: |
+          aws ecs update-service \
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --service ${{ env.ECS_WORKER_SERVICE }} \
+            --force-new-deployment \
+            --region ${{ env.AWS_REGION }}
+
+      - name: Wait for backend service to stabilize
+        run: |
+          aws ecs wait services-stable \
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --services ${{ env.ECS_BACKEND_SERVICE }} \
+            --region ${{ env.AWS_REGION }}
+
+  # ── 4. Build React y deploy a S3 + CloudFront ────────────────────
+  deploy-frontend:
+    name: Deploy Frontend
+    runs-on: ubuntu-latest
+    needs: deploy-backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: frontend
+
+      - name: Build React app
+        run: npm run build
+        working-directory: frontend
+        env:
+          REACT_APP_API_URL: ${{ secrets.REACT_APP_API_URL }}
+          CI: false # evita que warnings de ESLint fallen el build
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Deploy to S3
+        run: |
+          aws s3 sync frontend/build/ s3://${{ secrets.S3_BUCKET }} \
+            --delete \
+            --cache-control "max-age=31536000,immutable" \
+            --exclude "index.html"
+
+          # index.html no se cachea para que el navegador siempre traiga la última versión
+          aws s3 cp frontend/build/index.html s3://${{ secrets.S3_BUCKET }}/index.html \
+            --cache-control "no-cache,no-store,must-revalidate"
+
+      - name: Invalidate CloudFront cache
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }} \
+            --paths "/*"
