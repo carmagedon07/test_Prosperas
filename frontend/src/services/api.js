@@ -30,8 +30,8 @@ export async function createJob(token, report_type, date_range, format) {
   return res.json();
 }
 
-export async function getJobs(token, limit = 20, offset = 0) {
-  const res = await fetch(`${API_URL}/jobs?limit=${limit}&offset=${offset}`, {
+export async function getJobs(token, page = 1, page_size = 20) {
+  const res = await fetch(`${API_URL}/jobs?page=${page}&page_size=${page_size}`, {
     headers: { 'Authorization': `Bearer ${token}` }
   });
   if (!res.ok) {

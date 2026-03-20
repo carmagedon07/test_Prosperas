@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List, Optional, Tuple
 from uuid import UUID
 import boto3
 import os
@@ -44,18 +44,27 @@ class JobRepositoryDynamoDB(JobRepository):
             return None
         return self._to_domain(item)
 
-    def list(self, user_id: str, limit: int = 10, offset: int = 0) -> List[Job]:
-        # Use GSI to query by user_id
-        response = self.table.query(
-            IndexName='UserIdIndex',
-            KeyConditionExpression='user_id = :uid',
-            ExpressionAttributeValues={':uid': user_id},
-            Limit=limit + offset
-        )
-        items = response.get('Items', [])
-        # Manual offset handling (DynamoDB doesn't have native offset)
-        items = items[offset:offset + limit] if offset < len(items) else []
-        return [self._to_domain(item) for item in items]
+    def list(self, user_id: str, page: int = 1, page_size: int = 20) -> Tuple[List[Job], int]:
+        """Fetch all items for this user, then slice to the requested page.
+        Returns (page_items, total_count).
+        """
+        all_items: List[dict] = []
+        query_kwargs = {
+            'IndexName': 'UserIdIndex',
+            'KeyConditionExpression': 'user_id = :uid',
+            'ExpressionAttributeValues': {':uid': user_id},
+        }
+        while True:
+            response = self.table.query(**query_kwargs)
+            all_items.extend(response.get('Items', []))
+            if 'LastEvaluatedKey' not in response:
+                break
+            query_kwargs['ExclusiveStartKey'] = response['LastEvaluatedKey']
+
+        total = len(all_items)
+        offset = (page - 1) * page_size
+        page_items = all_items[offset: offset + page_size]
+        return [self._to_domain(item) for item in page_items], total
 
     def update(self, job: Job) -> Job:
         update_expr = "SET #status = :status, updated_at = :updated_at"

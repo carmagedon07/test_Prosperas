@@ -8,6 +8,11 @@ RUN npm install
 
 COPY . ./
 
+# REACT_APP_API_URL se inyecta en build-time desde docker-compose
+# Valor por defecto: localhost (desarrollo local)
+ARG REACT_APP_API_URL=http://localhost:8000
+ENV REACT_APP_API_URL=$REACT_APP_API_URL
+
 # Construir la aplicación
 RUN npm run build
 

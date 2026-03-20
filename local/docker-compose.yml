@@ -1,0 +1,144 @@
+# ============================================================
+#  Entorno local completo — usa LocalStack para emular AWS
+#  Levanta con:  docker compose up --build  (desde esta carpeta)
+# ============================================================
+
+services:
+
+  # ── LocalStack ────────────────────────────────────────────
+  localstack:
+    image: localstack/localstack:3.0
+    container_name: localstack
+    ports:
+      - "4566:4566"
+    environment:
+      - SERVICES=sqs,dynamodb
+      - DEBUG=0
+      - AWS_DEFAULT_REGION=us-east-1
+    volumes:
+      - localstack-data:/var/lib/localstack
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4566/_localstack/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    networks:
+      - app-net
+
+  # ── Inicializar recursos AWS (SQS + DynamoDB) ─────────────
+  aws-init:
+    image: amazon/aws-cli:latest
+    container_name: aws-init
+    depends_on:
+      localstack:
+        condition: service_healthy
+    environment:
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+      - AWS_DEFAULT_REGION=us-east-1
+    volumes:
+      - ./init-localstack.sh:/init/init-aws.sh
+    entrypoint: ["/bin/sh", "/init/init-aws.sh"]
+    restart: "no"
+    networks:
+      - app-net
+
+  # ── Poblar tabla de usuarios (seed) ───────────────────────
+  seed:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    container_name: seed
+    depends_on:
+      aws-init:
+        condition: service_completed_successfully
+    env_file:
+      - ../.env.example
+    environment:
+      - SQS_ENDPOINT=http://localstack:4566
+      - DYNAMODB_ENDPOINT=http://localstack:4566
+    entrypoint: ["python", "seed.py"]
+    restart: "no"
+    networks:
+      - app-net
+
+  # ── Backend (FastAPI) ─────────────────────────────────────
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    container_name: backend
+    ports:
+      - "8000:8000"
+    depends_on:
+      seed:
+        condition: service_completed_successfully
+    env_file:
+      - ../.env.example
+    environment:
+      - SQS_ENDPOINT=http://localstack:4566
+      - DYNAMODB_ENDPOINT=http://localstack:4566
+    networks:
+      - app-net
+    restart: on-failure
+
+  # ── Worker 1 (consumidor SQS #1) ──────────────────────────
+  worker-1:
+    build:
+      context: ..
+      dockerfile: worker/Dockerfile
+    container_name: worker-1
+    depends_on:
+      seed:
+        condition: service_completed_successfully
+    env_file:
+      - ../.env.example
+    environment:
+      - SQS_ENDPOINT=http://localstack:4566
+      - DYNAMODB_ENDPOINT=http://localstack:4566
+      - WORKER_INSTANCE_ID=worker-1
+    networks:
+      - app-net
+    restart: on-failure
+
+  # ── Worker 2 (consumidor SQS #2 — concurrencia) ───────────
+  worker-2:
+    build:
+      context: ..
+      dockerfile: worker/Dockerfile
+    container_name: worker-2
+    depends_on:
+      seed:
+        condition: service_completed_successfully
+    env_file:
+      - ../.env.example
+    environment:
+      - SQS_ENDPOINT=http://localstack:4566
+      - DYNAMODB_ENDPOINT=http://localstack:4566
+      - WORKER_INSTANCE_ID=worker-2
+    networks:
+      - app-net
+    restart: on-failure
+
+  # ── Frontend (React) ──────────────────────────────────────
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+      args:
+        - REACT_APP_API_URL=http://localhost:8000
+    container_name: frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    networks:
+      - app-net
+
+volumes:
+  localstack-data:
+
+networks:
+  app-net:
+    driver: bridge

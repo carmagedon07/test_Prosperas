@@ -19,30 +19,37 @@ export default function Dashboard() {
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState('');
   const [showSearchModal, setShowSearchModal] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalJobs, setTotalJobs] = useState(0);
+  const PAGE_SIZE = 20;
 
-  const fetchJobs = useCallback(async () => {
+  const fetchJobs = useCallback(async (page = currentPage) => {
     try {
-      const data = await getJobs(token);
+      const data = await getJobs(token, page, PAGE_SIZE);
       setJobs(data.jobs || []);
+      setTotalPages(data.total_pages || 1);
+      setTotalJobs(data.total || 0);
       setError('');
     } catch (err) {
       setError('Error al obtener los trabajos');
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, [token, currentPage]);
 
   useEffect(() => {
-    fetchJobs();
-  }, [fetchJobs]);
+    fetchJobs(currentPage);
+  }, [currentPage]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  usePolling(fetchJobs, 2000, allJobsFinished(jobs));
+  usePolling(() => fetchJobs(currentPage), 2000, allJobsFinished(jobs));
 
   const handleCreateJob = async ({ reportType, dateRange, format }) => {
     setCreating(true);
     try {
       await createJob(token, reportType, dateRange, format);
-      await fetchJobs();
+      setCurrentPage(1);
+      await fetchJobs(1);
     } catch {
       setError('Error al crear el trabajo');
     } finally {
@@ -57,7 +64,8 @@ export default function Dashboard() {
     try {
       const result = await deleteAllJobs(token);
       alert(`Se eliminaron ${result.count} trabajos exitosamente`);
-      await fetchJobs();
+      setCurrentPage(1);
+      await fetchJobs(1);
     } catch (err) {
       const isForbidden = (err && err.status === 403);
       if (isForbidden) {
@@ -101,7 +109,16 @@ export default function Dashboard() {
                 </div>
               </div>
               <h3 className="mb-3">Listado de solicitudes de reportes</h3>
-              {loading ? <Loader /> : <JobList jobs={jobs} />}
+              {loading ? <Loader /> : (
+                <JobList
+                  jobs={jobs}
+                  page={currentPage}
+                  totalPages={totalPages}
+                  totalJobs={totalJobs}
+                  pageSize={PAGE_SIZE}
+                  onPageChange={setCurrentPage}
+                />
+              )}
               {error && <div role="alert" className="alert alert-danger mt-3">{error}</div>}
             </div>
           </div>

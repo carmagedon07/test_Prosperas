@@ -4,6 +4,7 @@ from datetime import datetime
 from ...domain.enums.job_status import JobStatus
 
 from typing import Optional
+import math
 
 class JobCreateRequest(BaseModel):
     report_type: str = Field(...)
@@ -20,7 +21,10 @@ class JobResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     result_url: str | None = None
-    
+
 class JobListResponse(BaseModel):
     jobs: list[JobResponse]
-    total: int | None = None
+    total: int
+    page: int
+    page_size: int
+    total_pages: int

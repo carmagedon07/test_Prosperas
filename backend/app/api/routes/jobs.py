@@ -76,12 +76,22 @@ def get_job(
 @router.get("/jobs", response_model=JobListResponse)
 def list_jobs(
     current_user: dict = Depends(get_current_user),
-    limit: int = Query(10, ge=1, le=100),
-    offset: int = Query(0, ge=0)
+    page: int = Query(1, ge=1, description="Page number (1-based)"),
+    page_size: int = Query(20, ge=1, le=100, description="Items per page (min 20 recommended)")
 ):
-    jobs = list_jobs_use_case.execute(user_id=current_user["id"], limit=limit, offset=offset)
-    jobs_list = [JobResponse(**job.__dict__) for job in jobs] if jobs else []
-    return JobListResponse(jobs=jobs_list)
+    import math
+    jobs, total = list_jobs_use_case.execute(
+        user_id=current_user["id"], page=page, page_size=page_size
+    )
+    jobs_list = [JobResponse(**job.__dict__) for job in jobs]
+    total_pages = math.ceil(total / page_size) if page_size else 1
+    return JobListResponse(
+        jobs=jobs_list,
+        total=total,
+        page=page,
+        page_size=page_size,
+        total_pages=max(total_pages, 1)
+    )
 
 @router.delete("/jobs", status_code=200, dependencies=[Depends(require_admin)])
 def delete_all_jobs(current_user: dict = Depends(get_current_user)):

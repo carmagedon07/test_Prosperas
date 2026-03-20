@@ -1,10 +1,11 @@
+import os
 from datetime import datetime, timedelta
 from jose import jwt, JWTError
 from typing import Optional
 
-SECRET_KEY = "super-secret-key"  # En producción usar variable de entorno
+SECRET_KEY = os.getenv("JWT_SECRET", "super-secret-key-change-in-production")
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("JWT_EXPIRY_MINUTES", "60"))
 
 def create_access_token(user_id: str, expires_delta: Optional[timedelta] = None) -> str:
     role = "admin" if user_id == "superadmin" else "user"
