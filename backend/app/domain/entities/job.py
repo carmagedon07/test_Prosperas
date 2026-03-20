@@ -14,6 +14,7 @@ class Job:
         updated_at: datetime = None,
         result_url: str = None,
         job_id: UUID = None,
+        error_msg: str = None,
     ):
         self.job_id = job_id or uuid4()
         self.user_id = user_id
@@ -24,3 +25,4 @@ class Job:
         self.created_at = created_at or datetime.utcnow()
         self.updated_at = updated_at or self.created_at
         self.result_url = result_url
+        self.error_msg = error_msg
