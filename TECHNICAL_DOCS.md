@@ -195,13 +195,14 @@ cd test_Prosperas
 cp .env.example .env
 # Editar .env si es necesario (los valores por defecto funcionan para local)
 
-# 3. Levantar todos los servicios
+# 3. Ir a la carpeta local/ y levantar todos los servicios
+cd local
 docker compose up --build
 
 # La primera vez tarda ~2 minutos mientras construye las imágenes y
 # LocalStack inicializa los recursos (SQS + DynamoDB).
 
-# 4. Acceder a la app
+# 4. Acceder a la app (desde otra terminal, dejar docker compose corriendo)
 #   Frontend:  http://localhost:3000
 #   Backend:   http://localhost:8000
 #   API Docs:  http://localhost:8000/docs
