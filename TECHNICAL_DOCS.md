@@ -14,7 +14,71 @@ El sistema permite a usuarios autenticados solicitar **reportes de datos bajo de
 
 ---
 
-## 2. Diagrama de arquitectura
+## 2. Stack tecnológico
+
+El proyecto utiliza un stack moderno basado en **Python** para el backend, **React** para el frontend, y **AWS** para la infraestructura cloud. Todas las tecnologías fueron elegidas por su madurez, comunidad activa y compatibilidad con el ecosistema AWS.
+
+### Backend
+
+| Tecnología | Versión | Propósito |
+|---|---|---|
+| **Python** | 3.11 | Lenguaje base del backend y workers |
+| **FastAPI** | 0.104+ | Framework web asíncrono para REST API |
+| **Pydantic** | v2 | Validación de datos y serialización |
+| **boto3** | 1.28+ | SDK oficial de AWS para Python |
+| **bcrypt** | 4.0+ | Hash de contraseñas (12 rondas) |
+| **PyJWT** | 2.8+ | Generación y validación de tokens JWT |
+| **uvicorn** | 0.24+ | ASGI server para FastAPI |
+
+### Frontend
+
+| Tecnología | Versión | Propósito |
+|---|---|---|
+| **React** | 18.2 | Librería para interfaces de usuario |
+| **React Router** | 6.x | Enrutamiento SPA |
+| **axios** | 1.x | Cliente HTTP para llamadas a la API |
+| **CSS Modules** | - | Estilos con scope local por componente |
+
+### Infraestructura y DevOps
+
+| Tecnología | Versión | Propósito |
+|---|---|---|
+| **AWS** | - | Proveedor cloud (SQS, DynamoDB, ECS, S3, etc.) |
+| **Terraform** | 1.0+ | Infrastructure as Code (IaC) |
+| **Docker** | 20+ | Containerización de aplicaciones |
+| **Docker Compose** | v2 | Orquestación local con LocalStack |
+| **GitHub Actions** | - | CI/CD automatizado |
+| **LocalStack** | 3.0 | Emulación local de servicios AWS |
+
+### Testing
+
+| Tecnología | Versión | Propósito |
+|---|---|---|
+| **pytest** | 7.4+ | Framework de testing para Python |
+| **pytest-cov** | 4.1+ | Plugin de cobertura de código |
+| **unittest.mock** | stdlib | Mocking de dependencias |
+
+### Servicios AWS utilizados
+
+| Servicio | Categoría | Uso en el proyecto |
+|---|---|---|
+| **ECS Fargate** | Compute | Hosting de backend y workers (sin EC2) |
+| **SQS** | Messaging | Cola de mensajes para jobs asíncronos |
+| **DynamoDB** | Database | Persistencia de jobs y usuarios (NoSQL) |
+| **S3** | Storage | Hosting de frontend (archivos estáticos) |
+| **CloudFront** | CDN | Distribución global del frontend |
+| **ALB** | Load Balancer | Entrada HTTP al backend con health checks |
+| **ECR** | Container Registry | Registro de imágenes Docker |
+| **SSM Parameter Store** | Secrets | Almacenamiento cifrado del JWT_SECRET |
+| **CloudWatch** | Observability | Logs centralizados de todos los servicios |
+| **IAM** | Security | Roles y políticas para acceso entre servicios |
+| **VPC** | Networking | Red virtual para aislar recursos |
+
+**Nota:** No se usa RDS, EC2, Lambda, Kafka ni Kubernetes — el stack está optimizado para simplicidad y pago por uso.
+
+---
+
+## 3. Diagrama de arquitectura
 
 La arquitectura del sistema sigue un patrón **event-driven** con componentes desacoplados. El frontend se comunica con el backend a través de un ALB, el backend publica eventos en SQS, y los workers procesan estos eventos de forma independiente.
 
@@ -63,7 +127,7 @@ graph TD
 
 ---
 
-## 3. Servicios AWS utilizados
+## 4. Servicios AWS utilizados
 
 La elección de servicios AWS se basó en los principios de **serverless-first**, **pago por uso** y **gestión mínima de infraestructura**. Todos los servicios son gestionados por AWS, lo que reduce significativamente la carga operativa.
 
@@ -86,7 +150,7 @@ La elección de servicios AWS se basó en los principios de **serverless-first**
 
 ---
 
-## 4. Modelo de datos
+## 5. Modelo de datos
 
 El modelo de datos está diseñado para DynamoDB, una base de datos NoSQL que requiere planificar los patrones de acceso por adelantado. Las tablas están desnormalizadas para optimizar las consultas más frecuentes.
 
@@ -124,7 +188,7 @@ El modelo de datos está diseñado para DynamoDB, una base de datos NoSQL que re
 
 ---
 
-## 5. Flujo completo de un job
+## 6. Flujo completo de un job
 
 Este diagrama de secuencia muestra el ciclo de vida completo de un job desde que el usuario lo solicita hasta que ve el resultado final. El flujo está dividido en **tres fases** claramente diferenciadas:
 
@@ -195,7 +259,7 @@ sequenceDiagram
 
 ---
 
-## 6. Decisiones de diseño y trade-offs
+## 7. Decisiones de diseño y trade-offs
 
 Todo sistema software implica **trade-offs** — elegir una solución significa renunciar a los beneficios de otra. Esta sección documenta las decisiones técnicas más importantes y las alternativas que se consideraron pero se descartaron.
 
@@ -218,7 +282,7 @@ Cada decisión está justificada con las razones técnicas y de negocio que la m
 
 ---
 
-## 7. Setup local (LocalStack)
+## 8. Setup local (LocalStack)
 
 ### Prerequisitos
 
@@ -318,7 +382,7 @@ curl -X POST http://localhost:8000/jobs \
 
 ---
 
-## 8. Despliegue a producción
+## 9. Despliegue a producción
 
 ### Prerequisitos
 
@@ -552,7 +616,7 @@ graph LR
 
 ---
 
-## 9. Variables de entorno
+## 10. Variables de entorno
 
 Las variables de entorno permiten configurar el comportamiento de la aplicación sin modificar el código. Este proyecto utiliza un diseño **dual-mode** que funciona tanto en **desarrollo local con LocalStack** como en **producción con AWS real**.
 
@@ -588,7 +652,7 @@ Las variables de entorno permiten configurar el comportamiento de la aplicación
 
 ---
 
-## 10. Tests
+## 11. Tests
 
 El proyecto incluye una suite de **tests unitarios** que validan la lógica de negocio de los casos de uso. Los tests están escritos con **pytest** y cubren ~65% del código del backend.
 
