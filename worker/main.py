@@ -5,6 +5,7 @@ import random
 import boto3
 import json
 from uuid import UUID
+from concurrent.futures import ThreadPoolExecutor
 
 # Add backend to path to share code
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'backend'))
@@ -92,35 +93,39 @@ def process_job(job_id: str, receipt_handle: str, queue_url: str):
 def worker_loop(queue_url: str):
     instance_id = os.getenv("WORKER_INSTANCE_ID", "default")
     print(f"[{instance_id}] SQS Worker iniciado. Escuchando: {queue_url}")
-    while True:
-        try:
-            response = sqs.receive_message(
-                QueueUrl=queue_url,
-                MaxNumberOfMessages=1,
-                WaitTimeSeconds=10,
-                VisibilityTimeout=180,
-            )
-        except Exception as e:
-            print(f"[{instance_id}] Error recibiendo mensajes: {e}")
-            time.sleep(5)
-            continue
-
-        messages = response.get("Messages", [])
-        for msg in messages:
+    print(f"[{instance_id}] Concurrencia: máximo 2 jobs simultáneos por worker")
+    
+    # ThreadPoolExecutor con máximo 2 workers concurrentes
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        while True:
             try:
-                body = msg["Body"]
-                try:
-                    data = json.loads(body)
-                    job_id = data["job_id"]
-                except Exception:
-                    job_id = body
-
-                # Procesar de forma síncrona: 1 job por worker a la vez
-                # El mensaje se elimina dentro de process_job al finalizar
-                process_job(job_id, msg["ReceiptHandle"], queue_url)
-
+                response = sqs.receive_message(
+                    QueueUrl=queue_url,
+                    MaxNumberOfMessages=1,
+                    WaitTimeSeconds=10,
+                    VisibilityTimeout=180,
+                )
             except Exception as e:
-                print(f"[{instance_id}] Error despachando mensaje: {e}")
+                print(f"[{instance_id}] Error recibiendo mensajes: {e}")
+                time.sleep(5)
+                continue
+
+            messages = response.get("Messages", [])
+            for msg in messages:
+                try:
+                    body = msg["Body"]
+                    try:
+                        data = json.loads(body)
+                        job_id = data["job_id"]
+                    except Exception:
+                        job_id = body
+
+                    # Procesar con ThreadPoolExecutor: máximo 2 jobs concurrentes
+                    # El executor bloqueará automáticamente si ya hay 2 jobs ejecutándose
+                    executor.submit(process_job, job_id, msg["ReceiptHandle"], queue_url)
+
+                except Exception as e:
+                    print(f"[{instance_id}] Error despachando mensaje: {e}")
 
 
 if __name__ == "__main__":
