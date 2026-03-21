@@ -1,171 +1,294 @@
-name: Deploy to AWS
+name: Deploy to AWS ECS
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
+  pull_request:
+    branches:
+      - '**'
+
+permissions:
+  id-token: write
+  contents: read
+  pull-requests: read
 
 env:
   AWS_REGION: us-east-1
-  ECS_CLUSTER: prosperas-cluster
-  ECS_BACKEND_SERVICE: prosperas-backend
-  ECS_WORKER_SERVICE: prosperas-worker
+  ECR_REGISTRY: 521434189536.dkr.ecr.us-east-1.amazonaws.com
+  ECS_CLUSTER: prospera-cluster
+  ALB_DNS: prospera-alb-246038476.us-east-1.elb.amazonaws.com
 
 jobs:
-  # ── 1. Tests del backend ──────────────────────────────────────────
-  test:
-    name: Backend Tests
+  # ========================================================================
+  #  Detectar cambios en directorios específicos
+  # ========================================================================
+  changes:
+    name: Detect Changes
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Python 3.11
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Install dependencies
-        run: |
-          pip install -r backend/requirements.txt
-
-      - name: Run tests
-        run: |
-          cd backend
-          python -m pytest tests/ -v --tb=short
-        env:
-          JOBS_TABLE_NAME: jobs
-          USERS_TABLE_NAME: users
-          SQS_QUEUE_NAME: jobs-queue
-          JWT_SECRET: test-secret-for-ci
-          AWS_DEFAULT_REGION: us-east-1
-
-  # ── 2. Build y push imágenes Docker a ECR ────────────────────────
-  build-and-push:
-    name: Build & Push Docker Images
-    runs-on: ubuntu-latest
-    needs: test
     outputs:
-      image-tag: ${{ steps.tag.outputs.tag }}
-
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+      worker: ${{ steps.filter.outputs.worker }}
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - name: Set image tag (short SHA)
-        id: tag
-        run: echo "tag=${GITHUB_SHA::8}" >> $GITHUB_OUTPUT
+      - name: Check for changes
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            backend:
+              - 'backend/**'
+            frontend:
+              - 'frontend/**'
+            worker:
+              - 'worker/**'
 
-      - name: Configure AWS credentials
+  # ========================================================================
+  #  Build y push de Backend (solo si hay cambios)
+  # ========================================================================
+  build-backend:
+    name: Build Backend
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Login to Amazon ECR
-        id: ecr-login
+        id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Build & push backend image
+      - name: Build and push backend image
+        working-directory: backend
         run: |
-          TAG=${{ steps.tag.outputs.tag }}
-          docker build -t ${{ secrets.ECR_BACKEND_REPO }}:$TAG \
-                       -t ${{ secrets.ECR_BACKEND_REPO }}:latest \
-                       ./backend
-          docker push ${{ secrets.ECR_BACKEND_REPO }}:$TAG
-          docker push ${{ secrets.ECR_BACKEND_REPO }}:latest
+          IMAGE_TAG=${{ github.sha }}
+          docker build -t ${{ env.ECR_REGISTRY }}/prospera-backend:$IMAGE_TAG .
+          docker tag ${{ env.ECR_REGISTRY }}/prospera-backend:$IMAGE_TAG ${{ env.ECR_REGISTRY }}/prospera-backend:latest
+          docker push ${{ env.ECR_REGISTRY }}/prospera-backend:$IMAGE_TAG
+          docker push ${{ env.ECR_REGISTRY }}/prospera-backend:latest
+          echo "BACKEND_IMAGE=${{ env.ECR_REGISTRY }}/prospera-backend:$IMAGE_TAG" >> $GITHUB_ENV
 
-      - name: Build & push worker image
-        run: |
-          TAG=${{ steps.tag.outputs.tag }}
-          docker build -t ${{ secrets.ECR_WORKER_REPO }}:$TAG \
-                       -t ${{ secrets.ECR_WORKER_REPO }}:latest \
-                       -f worker/Dockerfile .
-          docker push ${{ secrets.ECR_WORKER_REPO }}:$TAG
-          docker push ${{ secrets.ECR_WORKER_REPO }}:latest
-
-  # ── 3. Deploy backend + worker en ECS ────────────────────────────
-  deploy-backend:
-    name: Deploy ECS Services
+  # ========================================================================
+  #  Build y push de Frontend (solo si hay cambios)
+  # ========================================================================
+  build-frontend:
+    name: Build Frontend
     runs-on: ubuntu-latest
-    needs: build-and-push
-
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
     steps:
-      - name: Configure AWS credentials
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Force new deployment — backend
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push frontend image
+        working-directory: frontend
+        run: |
+          IMAGE_TAG=${{ github.sha }}
+          docker build \
+            --build-arg REACT_APP_API_URL=http://${{ env.ALB_DNS }}/api \
+            -t ${{ env.ECR_REGISTRY }}/prospera-frontend:$IMAGE_TAG .
+          docker tag ${{ env.ECR_REGISTRY }}/prospera-frontend:$IMAGE_TAG ${{ env.ECR_REGISTRY }}/prospera-frontend:latest
+          docker push ${{ env.ECR_REGISTRY }}/prospera-frontend:$IMAGE_TAG
+          docker push ${{ env.ECR_REGISTRY }}/prospera-frontend:latest
+          echo "FRONTEND_IMAGE=${{ env.ECR_REGISTRY }}/prospera-frontend:$IMAGE_TAG" >> $GITHUB_ENV
+
+  # ========================================================================
+  #  Build y push de Worker (solo si hay cambios)
+  # ========================================================================
+  build-worker:
+    name: Build Worker
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.worker == 'true'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push worker image
+        run: |
+          IMAGE_TAG=${{ github.sha }}
+          docker build -f worker/Dockerfile -t ${{ env.ECR_REGISTRY }}/prospera-worker:$IMAGE_TAG .
+          docker tag ${{ env.ECR_REGISTRY }}/prospera-worker:$IMAGE_TAG ${{ env.ECR_REGISTRY }}/prospera-worker:latest
+          docker push ${{ env.ECR_REGISTRY }}/prospera-worker:$IMAGE_TAG
+          docker push ${{ env.ECR_REGISTRY }}/prospera-worker:latest
+          echo "WORKER_IMAGE=${{ env.ECR_REGISTRY }}/prospera-worker:$IMAGE_TAG" >> $GITHUB_ENV
+
+  # ========================================================================
+  #  Deploy Backend (solo en push a main)
+  # ========================================================================
+  deploy-backend:
+    name: Deploy Backend
+    runs-on: ubuntu-latest
+    needs: [changes, build-backend]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.changes.outputs.backend == 'true'
+    steps:
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Force new deployment for Backend
         run: |
           aws ecs update-service \
             --cluster ${{ env.ECS_CLUSTER }} \
-            --service ${{ env.ECS_BACKEND_SERVICE }} \
-            --force-new-deployment \
-            --region ${{ env.AWS_REGION }}
+            --service prospera-backend \
+            --force-new-deployment
 
-      - name: Force new deployment — worker
+      - name: Wait for Backend to stabilize
         run: |
-          aws ecs update-service \
-            --cluster ${{ env.ECS_CLUSTER }} \
-            --service ${{ env.ECS_WORKER_SERVICE }} \
-            --force-new-deployment \
-            --region ${{ env.AWS_REGION }}
-
-      - name: Wait for backend service to stabilize
-        run: |
+          echo "Waiting for Backend service to reach stable state..."
           aws ecs wait services-stable \
             --cluster ${{ env.ECS_CLUSTER }} \
-            --services ${{ env.ECS_BACKEND_SERVICE }} \
-            --region ${{ env.AWS_REGION }}
+            --services prospera-backend
 
-  # ── 4. Build React y deploy a S3 + CloudFront ────────────────────
+      - name: Wait additional 3 minutes
+        run: sleep 180
+
+  # ========================================================================
+  #  Deploy Worker (solo en push a main, después de Backend)
+  # ========================================================================
+  deploy-worker:
+    name: Deploy Worker
+    runs-on: ubuntu-latest
+    needs: [changes, build-worker, deploy-backend]
+    if: |
+      always() &&
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main' &&
+      needs.changes.outputs.worker == 'true' &&
+      (needs.deploy-backend.result == 'success' || needs.deploy-backend.result == 'skipped')
+    steps:
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Force new deployment for Worker
+        run: |
+          aws ecs update-service \
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --service prospera-worker \
+            --force-new-deployment
+
+      - name: Wait for Worker to stabilize
+        run: |
+          echo "Waiting for Worker service to reach stable state..."
+          aws ecs wait services-stable \
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --services prospera-worker
+
+      - name: Wait additional 3 minutes
+        run: sleep 180
+
+  # ========================================================================
+  #  Deploy Frontend (solo en push a main, después de Worker)
+  # ========================================================================
   deploy-frontend:
     name: Deploy Frontend
     runs-on: ubuntu-latest
-    needs: deploy-backend
-
+    needs: [changes, build-frontend, deploy-worker]
+    if: |
+      always() &&
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main' &&
+      needs.changes.outputs.frontend == 'true' &&
+      (needs.deploy-worker.result == 'success' || needs.deploy-worker.result == 'skipped')
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "18"
-          cache: "npm"
-          cache-dependency-path: frontend/package-lock.json
-
-      - name: Install dependencies
-        run: npm ci
-        working-directory: frontend
-
-      - name: Build React app
-        run: npm run build
-        working-directory: frontend
-        env:
-          REACT_APP_API_URL: ${{ secrets.REACT_APP_API_URL }}
-          CI: false # evita que warnings de ESLint fallen el build
-
-      - name: Configure AWS credentials
+      - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Deploy to S3
+      - name: Force new deployment for Frontend
         run: |
-          aws s3 sync frontend/build/ s3://${{ secrets.S3_BUCKET }} \
-            --delete \
-            --cache-control "max-age=31536000,immutable" \
-            --exclude "index.html"
+          aws ecs update-service \
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --service prospera-frontend \
+            --force-new-deployment
 
-          # index.html no se cachea para que el navegador siempre traiga la última versión
-          aws s3 cp frontend/build/index.html s3://${{ secrets.S3_BUCKET }}/index.html \
-            --cache-control "no-cache,no-store,must-revalidate"
-
-      - name: Invalidate CloudFront cache
+      - name: Wait for Frontend to stabilize
         run: |
-          aws cloudfront create-invalidation \
-            --distribution-id ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }} \
-            --paths "/*"
+          echo "Waiting for Frontend service to reach stable state..."
+          aws ecs wait services-stable \
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --services prospera-frontend
+
+      - name: Wait additional 3 minutes
+        run: sleep 180
+
+  # ========================================================================
+  #  Health Check (solo en push a main, al final de todo)
+  # ========================================================================
+  health-check:
+    name: Health Check
+    runs-on: ubuntu-latest
+    needs: [deploy-backend, deploy-worker, deploy-frontend]
+    if: |
+      always() &&
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main' &&
+      (needs.deploy-backend.result == 'success' || needs.deploy-backend.result == 'skipped') &&
+      (needs.deploy-worker.result == 'success' || needs.deploy-worker.result == 'skipped') &&
+      (needs.deploy-frontend.result == 'success' || needs.deploy-frontend.result == 'skipped')
+    steps:
+      - name: Check Backend health endpoint
+        run: |
+          echo "Checking backend health at http://${{ env.ALB_DNS }}/health"
+          max_attempts=30
+          attempt=0
+          
+          while [ $attempt -lt $max_attempts ]; do
+            response=$(curl -s -o /dev/null -w "%{http_code}" http://${{ env.ALB_DNS }}/health)
+            
+            if [ "$response" = "200" ]; then
+              echo "✅ Health check passed! Backend is healthy."
+              exit 0
+            fi
+            
+            attempt=$((attempt + 1))
+            echo "⏳ Attempt $attempt/$max_attempts: Received HTTP $response, retrying in 20 seconds..."
+            sleep 20
+          done
+          
+          echo "❌ Health check failed after $max_attempts attempts"
+          exit 1
+
+      - name: Report deployment success
+        if: success()
+        run: |
+          echo "🎉 Deployment completed successfully!"
+          echo "Backend: http://${{ env.ALB_DNS }}/health"
+          echo "Frontend: http://${{ env.ALB_DNS }}/"
