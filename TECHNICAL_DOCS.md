@@ -193,7 +193,9 @@ cd test_Prosperas
 
 # 2. Copiar variables de entorno
 cp .env.example .env
-# Editar .env si es necesario (los valores por defecto funcionan para local)
+# NOTA: Para desarrollo local NO es necesario editar .env
+# Los valores por defecto ya están configurados para LocalStack
+# Solo edita si necesitas cambiar puertos o credenciales de prueba
 
 # 3. Ir a la carpeta local/ y levantar todos los servicios
 cd local
