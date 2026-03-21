@@ -88,6 +88,59 @@ La arquitectura del sistema sigue un patrón **event-driven** con componentes de
 - **Resiliencia:** Fallo en un worker no afecta al backend ni al frontend
 - **Observabilidad:** Todos los servicios envían logs a CloudWatch
 
+### Vista simplificada del flujo por capas
+
+Este diagrama muestra las **3 capas principales** y el flujo de datos entre ellas:
+
+```mermaid
+graph TB
+    subgraph "Frontend Layer"
+        React["React Frontend<br/>(S3 + CloudFront)"]
+    end
+    
+    subgraph "API Layer - ECS"
+        FastAPI["FastAPI Backend<br/>(ECS Fargate)"]
+    end
+    
+    subgraph "Worker Layer - ECS"
+        Worker["Worker Service<br/>(ECS Fargate)"]
+        Process["Procesamiento<br/>sleep 5-30s<br/>lógica real"]
+        Worker --> Process
+    end
+    
+    Queue["SQS Queue<br/>(jobs-queue)"]
+    DB["DynamoDB<br/>(prosperas-jobs<br/>prosperas-users)"]
+    
+    React -->|"1. HTTP Requests<br/>(POST /jobs, GET /jobs)"| FastAPI
+    FastAPI -->|"6. Polling status<br/>(cada 5s)"| React
+    FastAPI -->|"2. Publica mensaje<br/>{job_id}"| Queue
+    Queue -->|"3. Consume mensaje<br/>(long-polling)"| Worker
+    FastAPI -->|"1. Guarda job PENDING<br/>7. Consulta estado"| DB
+    Process -->|"5. Actualiza status<br/>(PROCESSING → COMPLETED/FAILED)"| DB
+    Process -->|"8. Retorna resultado"| DB
+    
+    style React fill:#61dafb
+    style FastAPI fill:#009688
+    style Worker fill:#5d9c59
+    style Process fill:#ff9800
+    style Queue fill:#ff6b6b
+    style DB fill:#4a5568
+```
+
+**Flujo resumido:**
+1. Usuario solicita reporte → React envía `POST /jobs` a FastAPI
+2. FastAPI crea job con estado `PENDING` en DynamoDB y publica mensaje en SQS
+3. Worker consume mensaje de SQS (uno de los 2 workers disponibles)
+4. Worker procesa el job (simula con sleep 5-30s)
+5. Worker actualiza estado del job en DynamoDB (`COMPLETED` o `FAILED`)
+6. React hace polling cada 5s con `GET /jobs/{job_id}` para actualizar la UI
+7. FastAPI consulta DynamoDB y retorna el estado actual
+8. Resultado disponible para el usuario en tiempo real
+
+### Vista completa de la infraestructura
+
+Este diagrama muestra **todos los componentes AWS** y sus interacciones:
+
 ```mermaid
 graph TD
     User["🧑 Usuario (browser)"]
