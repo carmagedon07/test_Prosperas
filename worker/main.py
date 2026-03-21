@@ -65,7 +65,7 @@ def process_job(job_id: str, receipt_handle: str, queue_url: str):
     update_status_use_case = UpdateJobStatusUseCase(job_repository)
     try:
         update_status_use_case.execute(UUID(job_id), JobStatus.PROCESSING)
-        duration = random.uniform(5, 30)
+        duration = random.uniform(60, 90)
         print(f"[{instance_id}] Procesando job_id: {job_id} (duración: {duration:.1f}s)")
         time.sleep(duration)
         # Aleatoriamente COMPLETED o FAILED
@@ -99,7 +99,7 @@ def worker_loop(queue_url: str):
                 QueueUrl=queue_url,
                 MaxNumberOfMessages=1,
                 WaitTimeSeconds=10,
-                VisibilityTimeout=120,
+                VisibilityTimeout=180,
             )
         except Exception as e:
             print(f"[{instance_id}] Error recibiendo mensajes: {e}")
