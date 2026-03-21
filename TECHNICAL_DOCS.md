@@ -444,6 +444,22 @@ Luego, cada push a `main` disparará el pipeline automáticamente.
 
 ### Pipeline CI/CD (GitHub Actions — `.github/workflows/deploy.yml`)
 
+El proyecto utiliza **GitHub Actions** para automatizar completamente el despliegue a producción. Esto elimina errores humanos, garantiza consistencia en cada deployment y permite iterar rápidamente.
+
+#### ¿Cómo funciona?
+
+Cada vez que haces `git push origin main`, GitHub Actions detecta el cambio y ejecuta el pipeline definido en `.github/workflows/deploy.yml`. El workflow completo tarda ~5-8 minutos y no requiere intervención manual.
+
+#### Ventajas del pipeline automatizado
+
+- **Zero-downtime deployment:** ECS actualiza las tasks gradualmente (rolling update)
+- **Rollback automático:** Si el health check falla, ECS revierte a la versión anterior
+- **Builds paralelos:** Backend, worker y frontend se construyen simultáneamente
+- **Caché optimizado:** Docker layers y dependencias npm se cachean entre builds
+- **Seguridad:** Las credenciales AWS están en GitHub Secrets, no en el código
+
+#### Flujo visual del pipeline
+
 Cada push a la rama `main` dispara el siguiente flujo automatizado:
 
 ```mermaid
