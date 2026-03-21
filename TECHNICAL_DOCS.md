@@ -101,26 +101,63 @@ graph TD
 
 ## 5. Flujo completo de un job
 
-```
-POST /jobs  (Frontend → Backend)
-    │
-    ├─ Crea Job{status=PENDING} en DynamoDB
-    ├─ Publica {"job_id": "..."} en SQS
-    └─ Responde 201 → {job_id, status: "PENDING"}
+```mermaid
+sequenceDiagram
+    participant User as 🧑 Usuario
+    participant Frontend as React App
+    participant ALB as ALB
+    participant Backend as FastAPI Backend
+    participant DDB as DynamoDB
+    participant SQS as SQS Queue
+    participant Worker as Worker (ECS)
+    participant DLQ as Dead Letter Queue
 
-SQS → Worker (uno de los 2 workers ECS)
-    │
-    ├─ ReceiveMessage (long-polling 10s, visibility_timeout=120s)
-    ├─ Actualiza job → PROCESSING en DynamoDB
-    ├─ sleep(random 5–30s)  [simula procesamiento]
-    ├─ 50% → COMPLETED (result_url=https://dummy.result/{job_id})
-    │   50% → FAILED   (error_msg="Error simulado")
-    └─ DeleteMessage de SQS
+    Note over User,DLQ: Fase 1: Crear Job
+    User->>Frontend: Llena formulario de reporte
+    Frontend->>ALB: POST /jobs {report_type, date_range, format}
+    ALB->>Backend: Forward request
+    Backend->>DDB: PutItem job {status: PENDING}
+    DDB-->>Backend: OK
+    Backend->>SQS: SendMessage {job_id}
+    SQS-->>Backend: MessageId
+    Backend-->>ALB: 201 Created {job_id, status: PENDING}
+    ALB-->>Frontend: Response
+    Frontend-->>User: "Job creado, ID: xxx"
 
-Si el worker falla 3 veces → mensaje va a jobs-dlq (retención 14 días)
+    Note over User,DLQ: Fase 2: Procesamiento Asíncrono
+    Worker->>SQS: ReceiveMessage (long-polling 10s)
+    SQS-->>Worker: {job_id}
+    Note over Worker: Visibility timeout 120s
+    Worker->>DDB: UpdateItem job {status: PROCESSING}
+    DDB-->>Worker: OK
+    Worker->>Worker: sleep(random 5-30s)<br/>[simula procesamiento]
+    
+    alt Procesamiento exitoso (50%)
+        Worker->>DDB: UpdateItem {status: COMPLETED, result_url}
+        DDB-->>Worker: OK
+        Worker->>SQS: DeleteMessage
+    else Procesamiento fallido (50%)
+        Worker->>DDB: UpdateItem {status: FAILED, error_msg}
+        DDB-->>Worker: OK
+        Worker->>SQS: DeleteMessage
+    end
 
-Frontend polling
-    GET /jobs/{job_id} cada 5s → muestra badge de estado en tiempo real
+    Note over User,DLQ: Fase 3: Polling desde Frontend
+    loop Cada 5 segundos
+        Frontend->>ALB: GET /jobs/{job_id}
+        ALB->>Backend: Forward
+        Backend->>DDB: GetItem job_id
+        DDB-->>Backend: {job_id, status, ...}
+        Backend-->>ALB: 200 OK job data
+        ALB-->>Frontend: Response
+        Frontend-->>User: Actualiza badge de estado
+    end
+
+    Note over SQS,DLQ: Manejo de Fallos
+    alt Worker falla 3 veces
+        SQS->>DLQ: Mover mensaje (maxReceiveCount=3)
+        Note over DLQ: Retención 14 días<br/>Requiere redrive manual
+    end
 ```
 
 ---
