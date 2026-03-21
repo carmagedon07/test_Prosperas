@@ -16,6 +16,14 @@ El sistema permite a usuarios autenticados solicitar **reportes de datos bajo de
 
 ## 2. Diagrama de arquitectura
 
+La arquitectura del sistema sigue un patrón **event-driven** con componentes desacoplados. El frontend se comunica con el backend a través de un ALB, el backend publica eventos en SQS, y los workers procesan estos eventos de forma independiente.
+
+**Características clave:**
+- **Separación de responsabilidades:** Frontend (UI), Backend (API), Workers (procesamiento)
+- **Escalabilidad horizontal:** Cada componente puede escalar independientemente
+- **Resiliencia:** Fallo en un worker no afecta al backend ni al frontend
+- **Observabilidad:** Todos los servicios envían logs a CloudWatch
+
 ```mermaid
 graph TD
     User["🧑 Usuario (browser)"]
@@ -57,6 +65,14 @@ graph TD
 
 ## 3. Servicios AWS utilizados
 
+La elección de servicios AWS se basó en los principios de **serverless-first**, **pago por uso** y **gestión mínima de infraestructura**. Todos los servicios son gestionados por AWS, lo que reduce significativamente la carga operativa.
+
+**Criterios de selección:**
+- **Sin gestión de servidores:** DynamoDB, SQS, S3, CloudFront, ECS Fargate (sin EC2)
+- **Auto-scaling nativo:** Los servicios escalan automáticamente según demanda
+- **Integración nativa:** Servicios AWS se comunican sin configuración compleja
+- **Costo optimizado:** Solo pagas por lo que usas (sin infraestructura ociosa)
+
 | Servicio | Rol en el sistema | Por qué se eligió |
 |---|---|---|
 | **SQS** | Cola de mensajes entre API y workers | Servicio gestionado, precio por mensaje, DLQ nativa, reintentos automáticos. Kafka sería sobre-ingeniería para este volumen. |
@@ -71,6 +87,15 @@ graph TD
 ---
 
 ## 4. Modelo de datos
+
+El modelo de datos está diseñado para DynamoDB, una base de datos NoSQL que requiere planificar los patrones de acceso por adelantado. Las tablas están desnormalizadas para optimizar las consultas más frecuentes.
+
+**Patrones de acceso soportados:**
+1. Obtener job por ID (GetItem por PK)
+2. Listar jobs de un usuario ordenados por fecha (Query en GSI UserIdIndex)
+3. Autenticación de usuario (GetItem por user_id)
+
+**Decisión clave:** Se usa un **Global Secondary Index (GSI)** en la tabla de jobs para permitir consultas eficientes por `user_id` sin hacer Scan completo de la tabla.
 
 ### Tabla `prosperas-jobs`
 
@@ -100,6 +125,14 @@ graph TD
 ---
 
 ## 5. Flujo completo de un job
+
+Este diagrama de secuencia muestra el ciclo de vida completo de un job desde que el usuario lo solicita hasta que ve el resultado final. El flujo está dividido en **tres fases** claramente diferenciadas:
+
+1. **Fase 1: Crear Job** — El usuario envía la solicitud, el backend crea el registro y encola el mensaje
+2. **Fase 2: Procesamiento Asíncrono** — Un worker consume el mensaje, procesa el job y actualiza su estado
+3. **Fase 3: Polling desde Frontend** — El frontend consulta periódicamente el estado hasta que el job termina
+
+**Nota importante:** El frontend recibe una respuesta inmediata (201 Created) sin esperar a que el job termine de procesarse. Esto es clave para la experiencia de usuario en operaciones que pueden tardar varios segundos.
 
 ```mermaid
 sequenceDiagram
@@ -163,6 +196,16 @@ sequenceDiagram
 ---
 
 ## 6. Decisiones de diseño y trade-offs
+
+Todo sistema software implica **trade-offs** — elegir una solución significa renunciar a los beneficios de otra. Esta sección documenta las decisiones técnicas más importantes y las alternativas que se consideraron pero se descartaron.
+
+**Filosofía de diseño:**
+- **Simplicidad sobre sofisticación:** Elegir la solución más simple que resuelva el problema
+- **Iterar, no sobre-diseñar:** Implementar lo necesario ahora, dejar extensiones para después
+- **Costo-eficiencia:** Evitar servicios caros cuando hay alternativas más baratas que funcionan
+- **Despliegue rápido:** Priorizar soluciones que permitan llegar a producción en días, no semanas
+
+Cada decisión está justificada con las razones técnicas y de negocio que la motivaron.
 
 | Decisión | Alternativa descartada | Razón |
 |---|---|---|
@@ -546,6 +589,21 @@ Las variables de entorno permiten configurar el comportamiento de la aplicación
 ---
 
 ## 10. Tests
+
+El proyecto incluye una suite de **tests unitarios** que validan la lógica de negocio de los casos de uso. Los tests están escritos con **pytest** y cubren ~65% del código del backend.
+
+**Características de los tests:**
+- **Tests unitarios puros:** Usan mocks en memoria, no requieren AWS ni LocalStack
+- **Rápidos:** Se ejecutan en ~2 segundos
+- **Ejecutados en CI/CD:** Cada push a main ejecuta los tests antes de desplegar
+- **Cobertura medible:** Se puede generar reporte de cobertura con `pytest --cov`
+
+**Filosofía de testing:**
+- Se testean **casos de uso** (capa de aplicación), no infraestructura (repositorios)
+- Los repositorios se mockean con implementaciones in-memory
+- Se validan transiciones de estado, validaciones, y casos borde
+
+**Cobertura actual:** 65% (23 tests pasando). Para alcanzar 70% se necesitarían ~7 tests adicionales de API endpoints y repositorios con boto3 mocks.
 
 ```bash
 # Desde la raíz del proyecto
