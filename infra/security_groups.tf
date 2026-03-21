@@ -1,39 +1,52 @@
-# ── Security Group: ALB ───────────────────────────────────────────────
-# Acepta tráfico HTTP público → reenvía al backend ECS
+# ============================================================
+# Security Groups
+# ============================================================
+
+# ── ALB Security Group ───────────────────────────────────────
 
 resource "aws_security_group" "alb" {
   name        = "${var.project_name}-alb-sg"
-  description = "HTTP ingress from internet to ALB"
-  vpc_id      = data.aws_vpc.default.id
+  description = "Security group para Application Load Balancer"
+  vpc_id      = aws_vpc.main.id
 
   ingress {
-    description = "HTTP"
+    description = "HTTP desde Internet"
     from_port   = 80
     to_port     = 80
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
 
+  ingress {
+    description = "HTTPS desde Internet"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
   egress {
+    description = "All outbound traffic"
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  tags = local.common_tags
+  tags = {
+    Name = "${var.project_name}-alb-sg"
+  }
 }
 
-# ── Security Group: Backend ECS ───────────────────────────────────────
-# Solo acepta tráfico del ALB en el puerto 8000
+# ── Backend Security Group ───────────────────────────────────
 
 resource "aws_security_group" "backend" {
   name        = "${var.project_name}-backend-sg"
-  description = "Backend ECS - accepts traffic only from ALB"
-  vpc_id      = data.aws_vpc.default.id
+  description = "Security group para backend FastAPI"
+  vpc_id      = aws_vpc.main.id
 
   ingress {
-    description     = "FastAPI from ALB"
+    description     = "FastAPI desde ALB"
     from_port       = 8000
     to_port         = 8000
     protocol        = "tcp"
@@ -41,30 +54,64 @@ resource "aws_security_group" "backend" {
   }
 
   egress {
-    description = "All outbound (DynamoDB, SQS, ECR via internet)"
+    description = "All outbound traffic (DynamoDB, SQS, ECR)"
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  tags = local.common_tags
+  tags = {
+    Name = "${var.project_name}-backend-sg"
+  }
 }
 
-# ── Security Group: Worker ECS ────────────────────────────────────────
-# Solo salida — los workers consumen SQS y escriben en DynamoDB (sin ingreso)
+# ── Frontend Security Group ──────────────────────────────────
+
+resource "aws_security_group" "frontend" {
+  name        = "${var.project_name}-frontend-sg"
+  description = "Security group para frontend React"
+  vpc_id      = aws_vpc.main.id
+
+  ingress {
+    description     = "React desde ALB"
+    from_port       = 3000
+    to_port         = 3000
+    protocol        = "tcp"
+    security_groups = [aws_security_group.alb.id]
+  }
+
+  egress {
+    description = "All outbound traffic"
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name = "${var.project_name}-frontend-sg"
+  }
+}
+
+# ── Workers Security Group ───────────────────────────────────
 
 resource "aws_security_group" "worker" {
   name        = "${var.project_name}-worker-sg"
-  description = "Worker ECS - outbound only (SQS + DynamoDB)"
-  vpc_id      = data.aws_vpc.default.id
+  description = "Security group para workers SQS (solo egress)"
+  vpc_id      = aws_vpc.main.id
+
+  # Sin reglas de ingress - los workers solo consumen de SQS y escriben a DynamoDB
 
   egress {
+    description = "All outbound traffic (SQS, DynamoDB)"
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  tags = local.common_tags
+  tags = {
+    Name = "${var.project_name}-worker-sg"
+  }
 }

@@ -10,13 +10,19 @@ from ...application.interfaces.job_repository import JobRepository
 
 class JobRepositoryDynamoDB(JobRepository):
     def __init__(self):
-        self.dynamodb = boto3.resource(
-            'dynamodb',
-            endpoint_url=os.getenv('DYNAMODB_ENDPOINT') or None,
-            region_name=os.getenv('AWS_REGION', 'us-east-1'),
-            aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID', 'test'),
-            aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY', 'test')
-        )
+        # Para LocalStack: usa endpoint_url y credenciales test  
+        # Para AWS: boto3 usa automáticamente el ECS Task Role
+        dynamodb_params = {
+            'region_name': os.getenv('AWS_REGION', 'us-east-1')
+        }
+        
+        # Solo para LocalStack (desarrollo local)
+        if os.getenv('DYNAMODB_ENDPOINT'):
+            dynamodb_params['endpoint_url'] = os.getenv('DYNAMODB_ENDPOINT')
+            dynamodb_params['aws_access_key_id'] = 'test'
+            dynamodb_params['aws_secret_access_key'] = 'test'
+        
+        self.dynamodb = boto3.resource('dynamodb', **dynamodb_params)
         self.table = self.dynamodb.Table(os.getenv('JOBS_TABLE_NAME', os.getenv('DYNAMODB_TABLE_NAME', 'jobs')))
 
     def create(self, job: Job) -> Job:

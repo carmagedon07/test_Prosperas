@@ -1,25 +1,32 @@
-# ── SQS: Dead Letter Queue ────────────────────────────────────────────
-# Recibe mensajes que fallaron 3 veces — estrategia de resiliencia ante fallos
+# ============================================================
+# SQS - Cola de mensajes para jobs
+# ============================================================
+
+# ── Dead Letter Queue ────────────────────────────────────────
 
 resource "aws_sqs_queue" "jobs_dlq" {
-  name                      = "${var.project_name}-jobs-dlq"
+  name                      = "${var.project_name}-${var.sqs_queue_name}-dlq"
   message_retention_seconds = 1209600 # 14 días
 
-  tags = local.common_tags
+  tags = {
+    Name = "${var.project_name}-jobs-dlq"
+  }
 }
 
-# ── SQS: Cola principal de jobs ───────────────────────────────────────
+# ── Cola Principal ───────────────────────────────────────────
 
 resource "aws_sqs_queue" "jobs" {
-  name                       = "${var.project_name}-jobs-queue"
-  visibility_timeout_seconds = 120   # tiempo para que el worker procese sin que otro lo tome
-  message_retention_seconds  = 86400 # 1 día
+  name                       = "${var.project_name}-${var.sqs_queue_name}"
+  visibility_timeout_seconds = var.sqs_visibility_timeout
+  message_retention_seconds  = var.sqs_message_retention
+  receive_wait_time_seconds  = 20 # Long polling
 
-  # DLQ: después de 3 reintentos fallidos, el mensaje va a la DLQ
   redrive_policy = jsonencode({
     deadLetterTargetArn = aws_sqs_queue.jobs_dlq.arn
     maxReceiveCount     = 3
   })
 
-  tags = local.common_tags
+  tags = {
+    Name = "${var.project_name}-jobs-queue"
+  }
 }

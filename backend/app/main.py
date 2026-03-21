@@ -25,8 +25,8 @@ app.add_middleware(
 
 # Registrar rutas
 app.include_router(health.router)
-app.include_router(auth.router)
-app.include_router(jobs.router)
+app.include_router(auth.router, prefix="/api")
+app.include_router(jobs.router, prefix="/api")
 
 # Registrar handlers globales
 app.add_exception_handler(RequestValidationError, validation_exception_handler)

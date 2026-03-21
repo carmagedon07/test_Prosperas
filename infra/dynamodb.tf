@@ -1,9 +1,12 @@
-# ── DynamoDB Tables ───────────────────────────────────────────────────
+# ============================================================
+# DynamoDB - Tablas para jobs y usuarios
+# ============================================================
 
-# Tabla principal de jobs
+# ── Tabla Jobs ───────────────────────────────────────────────
+
 resource "aws_dynamodb_table" "jobs" {
-  name         = "${var.project_name}-jobs"
-  billing_mode = "PAY_PER_REQUEST" # free tier: 200M req/mes — sin costo para el challenge
+  name         = "${var.project_name}-${var.jobs_table_name}"
+  billing_mode = "PAY_PER_REQUEST" # On-demand pricing
   hash_key     = "job_id"
 
   attribute {
@@ -16,19 +19,22 @@ resource "aws_dynamodb_table" "jobs" {
     type = "S"
   }
 
-  # GSI para listar jobs por usuario eficientemente (GET /jobs)
+  # GSI para consultar jobs por usuario
   global_secondary_index {
     name            = "UserIdIndex"
     hash_key        = "user_id"
     projection_type = "ALL"
   }
 
-  tags = local.common_tags
+  tags = {
+    Name = "${var.project_name}-jobs-table"
+  }
 }
 
-# Tabla de usuarios (auth)
+# ── Tabla Users ──────────────────────────────────────────────
+
 resource "aws_dynamodb_table" "users" {
-  name         = "${var.project_name}-users"
+  name         = "${var.project_name}-${var.users_table_name}"
   billing_mode = "PAY_PER_REQUEST"
   hash_key     = "user_id"
 
@@ -37,5 +43,7 @@ resource "aws_dynamodb_table" "users" {
     type = "S"
   }
 
-  tags = local.common_tags
+  tags = {
+    Name = "${var.project_name}-users-table"
+  }
 }

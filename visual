@@ -1,0 +1,23 @@
+[33md8e25c0[m[33m ([m[1;36mHEAD -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m)[m fix: worker SQS via IAM role and remove leaked credentials
+[33mf0f7645[m fix: use ECS IAM role for jobs DynamoDB
+[33m431a585[m chore: configure CORS for CloudFront origin
+[33mb5494e5[m fix: use ECS IAM role for DynamoDB
+[33m5229923[m chore: trigger workflow
+[33m0cc3d53[m trigger: force frontend rebuild with API URL
+[33m86e1aa6[m docs: add frontend configuration fix instructions
+[33m041a15f[m fix: elimina directorio dependencies/ erroneo que causaba ImportError
+[33m71970c2[m fix: continue-on-error en wait ECS para evitar timeout del pipeline
+[33mc1e0eac[m fix: agrega pytest a requirements-test.txt y actualiza CI para usarlo
+[33mbae325a[m fix: corrige tests CI/CD - __init__.py, pytest.ini y firma CreateJobUseCase
+[33mcfaeaae[m Merge feacture-004: AWS infra deployment + CI/CD configurado
+[33maa4ec42[m[33m ([m[1;32mfeacture-004[m[33m)[m feat: deploy infra AWS + update README con URLs produccion
+[33maf3b5ba[m feat: implementación completa del sistema de procesamiento asíncrono de reportes
+[33m3e87179[m[33m ([m[1;31morigin/feacture-003[m[33m, [m[1;32mfeacture-003[m[33m, [m[1;32mdev[m[33m)[m feat(auth): agregar endpoint de auto-registro de usuarios y UI
+[33m16c33a5[m feat: add docker-compose, fix pagination, env vars and missing modules
+[33mb234f4c[m feat: implement user authentication with DynamoDB and reorganize project structure
+[33mda66af8[m feat: implement user authentication with DynamoDB and reorganize project structure
+[33m684e03a[m feat: Implementar tabla de usuarios en DynamoDB con autenticación bcrypt
+[33mb77752a[m feat: Add job search by ID and display Job ID in list" -m "Features added: - New JobDetailModal component for searching jobs by ID - Search button in Dashboard that opens modal with input field - Job ID column in jobs table (second column after #) - Tooltip showing full Job ID on hover - Complete job details display including result and metadata - Enhanced error handling for 404 responses
+[33m94dfd9c[m feat: Agregar botón limpiar tabla y configurar 2 workers con 1 thread
+[33m475f3b1[m feat: Migrar de SQLite a DynamoDB y crear worker independiente
+[33mc60365f[m feat: integrar SQS con backend y worker para procesamiento asíncrono de jobs

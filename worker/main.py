@@ -15,20 +15,22 @@ from app.domain.enums.job_status import JobStatus
 from app.infrastructure.repositories.job_repository_dynamodb import JobRepositoryDynamoDB
 
 # AWS/SQS Configuration
-AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID", "test")
-AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY", "test")
 AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
 SQS_QUEUE_NAME = os.getenv("SQS_QUEUE_NAME", "test-queue")
 # None → usa endpoints reales de AWS; valor → apunta a localstack (desarrollo local)
 SQS_ENDPOINT = os.getenv("SQS_ENDPOINT") or None
 
-sqs = boto3.client(
-    "sqs",
-    region_name=AWS_REGION,
-    aws_access_key_id=AWS_ACCESS_KEY_ID,
-    aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
-    endpoint_url=SQS_ENDPOINT,
-)
+# Para LocalStack: usa credenciales test
+# Para AWS: boto3 usa automáticamente el ECS Task Role
+sqs_params = {'region_name': AWS_REGION}
+
+# Solo para LocalStack (desarrollo local)
+if SQS_ENDPOINT:
+    sqs_params['endpoint_url'] = SQS_ENDPOINT
+    sqs_params['aws_access_key_id'] = 'test'
+    sqs_params['aws_secret_access_key'] = 'test'
+
+sqs = boto3.client("sqs", **sqs_params)
 
 
 def resolve_queue_url(sqs_client, queue_name: str) -> str:
