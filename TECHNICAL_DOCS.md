@@ -187,6 +187,14 @@ sequenceDiagram
 ### Pasos
 
 ```bash
+# 0. Verificar que Docker Desktop está corriendo
+docker --version
+# Debe mostrar: Docker version 20.x o superior
+# Si da error, abre Docker Desktop y espera a que arranque completamente
+
+docker compose version
+# Debe mostrar: Docker Compose version v2.x o superior
+
 # 1. Clonar el repo
 git clone https://github.com/carmagedon07/test_Prosperas.git
 cd test_Prosperas
@@ -203,25 +211,39 @@ docker compose up --build
 
 # La primera vez tarda ~2 minutos mientras construye las imágenes y
 # LocalStack inicializa los recursos (SQS + DynamoDB).
+# ⚠️ ESPERA a ver estos mensajes en los logs antes de continuar:
+#    ✓ "localstack   | Ready." 
+#    ✓ "aws-init    | ✅ Queue created: jobs-queue"
+#    ✓ "aws-init    | ✅ Table created: jobs"
+#    ✓ "backend     | INFO:     Application startup complete."
 
-# 4. Acceder a la app (desde otra terminal, dejar docker compose corriendo)
+# 4. Verificar que LocalStack está listo (en otra terminal)
+curl http://localhost:4566/_localstack/health
+# Debe responder con JSON mostrando servicios "available"
+
+# Si LocalStack NO responde:
+#   - Espera 30 segundos más (puede tardar en arrancar)
+#   - Verifica logs: docker compose logs localstack
+#   - Reinicia: docker compose down -v && docker compose up --build
+
+# 5. Acceder a la app (desde otra terminal, dejar docker compose corriendo)
 #   Frontend:  http://localhost:3000
 #   Backend:   http://localhost:8000
 #   API Docs:  http://localhost:8000/docs
 #   LocalStack: http://localhost:4566
 
-# 5. Crear un usuario
+# 6. Crear un usuario
 curl -X POST http://localhost:8000/auth/register \
   -H "Content-Type: application/json" \
   -d '{"user_id": "testuser", "password": "pass1234"}'
 
-# 6. Hacer login
+# 7. Hacer login
 curl -X POST http://localhost:8000/auth/login \
   -H "Content-Type: application/json" \
   -d '{"user_id": "testuser", "password": "pass1234"}'
 # → guarda el token recibido
 
-# 7. Crear un job
+# 8. Crear un job
 curl -X POST http://localhost:8000/jobs \
   -H "Authorization: Bearer <TOKEN>" \
   -H "Content-Type: application/json" \
@@ -238,6 +260,18 @@ curl -X POST http://localhost:8000/jobs \
 | `worker` | — | SQS Worker (instancia 1) |
 | `worker2` | — | SQS Worker (instancia 2) |
 | `frontend` | 3000 | React |
+
+### Solución de problemas comunes
+
+| Problema | Causa | Solución |
+|---|---|---|
+| `Cannot connect to the Docker daemon` | Docker Desktop no está corriendo | Abre Docker Desktop y espera a que muestre "Engine running" |
+| `connection refused localhost:4566` | LocalStack aún no arrancó | Espera ~30 segundos más. Verifica logs: `docker compose logs localstack` |
+| `ResourceNotFoundException: jobs table` | Las tablas DynamoDB no se crearon | Verifica logs del servicio `aws-init`: `docker compose logs aws-init`. Si falló, reinicia: `docker compose down -v && docker compose up --build` |
+| Backend no arranca (port 8000 ocupado) | Puerto 8000 ya en uso por otro proceso | Mata el proceso: `lsof -ti:8000 \| xargs kill` (Mac/Linux) o cambia `BACKEND_PORT` en `.env` |
+| Frontend no carga en localhost:3000 | Puerto 3000 ocupado o contenedor falló | Verifica logs: `docker compose logs frontend`. Cambia puerto: `ports: "3001:3000"` en docker-compose.yml |
+| Workers no procesan mensajes | SQS_ENDPOINT apunta a localhost en vez de localstack | Verifica que `.env` tiene `SQS_ENDPOINT=http://localstack:4566` (nombre del servicio, no localhost) |
+| `docker compose: command not found` | Docker Compose v1 instalado (deprecated) | Instala v2: https://docs.docker.com/compose/install/ o usa `docker-compose` (con guión) |
 
 ---
 
