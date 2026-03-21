@@ -67,6 +67,9 @@ class JobRepositoryDynamoDB(JobRepository):
                 break
             query_kwargs['ExclusiveStartKey'] = response['LastEvaluatedKey']
 
+        # Ordenar por fecha de creación (más recientes primero)
+        all_items.sort(key=lambda x: x.get('created_at', ''), reverse=True)
+        
         total = len(all_items)
         offset = (page - 1) * page_size
         page_items = all_items[offset: offset + page_size]

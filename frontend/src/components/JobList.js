@@ -6,6 +6,11 @@ export default function JobList({ jobs, page, totalPages, totalJobs, pageSize, o
     return <p>No hay trabajos aún.</p>;
   }
 
+  // Ordenar por fecha de creación (más recientes primero) como capa adicional
+  const sortedJobs = [...jobs].sort((a, b) => 
+    new Date(b.created_at) - new Date(a.created_at)
+  );
+
   const goToPage = (p) => {
     if (p >= 1 && p <= totalPages) onPageChange(p);
   };
@@ -21,7 +26,7 @@ export default function JobList({ jobs, page, totalPages, totalJobs, pageSize, o
     <>
       <div className="d-flex justify-content-between align-items-center mb-2">
         <small className="text-muted">
-          Mostrando {jobs.length === 0 ? 0 : (page - 1) * pageSize + 1}–{(page - 1) * pageSize + jobs.length} de {totalJobs} solicitudes
+          Mostrando {sortedJobs.length === 0 ? 0 : (page - 1) * pageSize + 1}–{(page - 1) * pageSize + sortedJobs.length} de {totalJobs} solicitudes
         </small>
         <small className="text-muted">Página {page} de {totalPages}</small>
       </div>
@@ -38,7 +43,7 @@ export default function JobList({ jobs, page, totalPages, totalJobs, pageSize, o
             </tr>
           </thead>
           <tbody>
-            {jobs.map((job, index) => (
+            {sortedJobs.map((job, index) => (
               <tr key={job.job_id}>
                 <td><strong>{(page - 1) * pageSize + index + 1}</strong></td>
                 <td>
