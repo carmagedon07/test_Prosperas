@@ -277,22 +277,96 @@ curl -X POST http://localhost:8000/jobs \
 
 ## 8. Despliegue a producción
 
+### Prerequisitos
+
+Antes de desplegar a AWS, asegúrate de tener instalado:
+
+- **Terraform** v1.0 o superior
+- **AWS CLI** v2 configurado con credenciales de administrador
+- Cuenta AWS con permisos para crear recursos (VPC, ECS, DynamoDB, SQS, ALB, etc.)
+
+#### Verificar instalación de Terraform
+
+```bash
+terraform --version
+# Debe mostrar: Terraform v1.x.x o superior
+```
+
+**Si NO está instalado:**
+
+- **Windows (con Chocolatey):**
+  ```bash
+  choco install terraform
+  ```
+
+- **macOS (con Homebrew):**
+  ```bash
+  brew install terraform
+  ```
+
+- **Linux (Ubuntu/Debian):**
+  ```bash
+  wget -O- https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
+  echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
+  sudo apt update && sudo apt install terraform
+  ```
+
+- **Manual (cualquier OS):**  
+  Descarga desde https://www.terraform.io/downloads y agrega al PATH
+
+#### Verificar instalación de AWS CLI
+
+```bash
+aws --version
+# Debe mostrar: aws-cli/2.x.x o superior
+
+# Configurar credenciales (si no lo has hecho)
+aws configure
+# Ingresa: Access Key ID, Secret Access Key, Region (us-east-1), Output (json)
+```
+
+**Si NO está instalado:**  
+Sigue la guía oficial: https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html
+
 ### Infraestructura (Terraform — carpeta `infra/`)
 
 ```bash
+# 0. Verificar que Terraform y AWS CLI están configurados
+terraform --version
+aws sts get-caller-identity
+# Debe mostrar tu UserId, Account y Arn (confirma que las credenciales funcionan)
+
+# 1. Ir a la carpeta de infraestructura
 cd infra
 cp terraform.tfvars.example terraform.tfvars
-# Editar terraform.tfvars con: jwt_secret y (opcional) image_tag
 
+# 2. Editar terraform.tfvars con tus valores
+# OBLIGATORIO: jwt_secret (genera uno seguro con: openssl rand -base64 32)
+# OPCIONAL: image_tag, environment, backend_cpu, etc.
+
+# 3. Inicializar Terraform (descarga providers de AWS)
 terraform init
-terraform plan
-terraform apply   # crea todos los recursos AWS (~3 min)
 
-# Al finalizar, anota los outputs:
-terraform output backend_url            # URL del ALB
+# 4. Ver qué recursos se crearán (IMPORTANTE: revisar antes de aplicar)
+terraform plan
+# Deberías ver ~44 recursos: VPC, subnets, SQS, DynamoDB, ECS, ALB, CloudFront, etc.
+
+# 5. Crear todos los recursos en AWS (~3-5 min)
+terraform apply
+# Escribe 'yes' cuando pregunte
+
+# ⚠️ NOTA: La primera vez puede fallar el health check de ECS porque
+# las imágenes Docker aún no existen en ECR. Si eso pasa:
+#   1. Copia los outputs de ECR (ecr_backend_url, ecr_worker_url)
+#   2. Haz push manual de las imágenes (ver sección siguiente)
+#   3. Re-ejecuta: terraform apply
+
+# 6. Al finalizar, anota los outputs:
+terraform output backend_url            # URL del ALB (API)
 terraform output cloudfront_url         # URL del frontend
 terraform output ecr_backend_url        # Para primer push manual
-terraform output -json cicd_secret_access_key  # Para GitHub Secrets
+terraform output ecr_worker_url         # Para primer push manual
+terraform output -json cicd_secret_access_key  # Para GitHub Secrets (guarda seguro)
 ```
 
 ### GitHub Secrets requeridos
