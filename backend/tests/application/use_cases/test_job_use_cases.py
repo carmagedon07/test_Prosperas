@@ -16,10 +16,12 @@ def test_create_job_sets_pending(job_repository_mock):
     use_case = CreateJobUseCase(job_repository_mock)
     user_id = "user-1"
     report_type = "ventas"
+    date_range = "2024-01"
+    format = "PDF"
     # Simula que el repo devuelve el mismo job
     job_repository_mock.create.side_effect = lambda job: job
     # Act
-    job = use_case.execute(user_id=user_id, report_type=report_type)
+    job = use_case.execute(user_id=user_id, report_type=report_type, date_range=date_range, format=format)
     # Assert
     assert job.status == JobStatus.PENDING
     assert job.user_id == user_id
@@ -31,7 +33,7 @@ def test_get_job_success(job_repository_mock):
     # Arrange
     job_id = uuid4()
     user_id = "user-2"
-    job = Job(user_id=user_id, report_type="ventas", job_id=job_id)
+    job = Job(user_id=user_id, report_type="ventas", date_range="2024-01", format="PDF", job_id=job_id)
     job_repository_mock.get.return_value = job
     use_case = GetJobUseCase(job_repository_mock)
     # Act

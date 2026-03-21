@@ -18,7 +18,9 @@ def test_create_job_success(fake_repo):
     use_case = CreateJobUseCase(fake_repo)
     user_id = "user-123"
     report_type = "ventas"
-    job = use_case.execute(user_id=user_id, report_type=report_type)
+    date_range = "2024-01"
+    format = "PDF"
+    job = use_case.execute(user_id=user_id, report_type=report_type, date_range=date_range, format=format)
     assert job.user_id == user_id
     assert job.report_type == report_type
     assert job.status.value == "PENDING"

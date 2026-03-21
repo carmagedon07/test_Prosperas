@@ -10,9 +10,15 @@ from .api.exception_handlers import (
 from fastapi.exceptions import RequestValidationError
 from fastapi import HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from .core.logging_config import setup_logging
+import logging
+import os
 
+# Configurar logging estructurado al inicio de la aplicación
+setup_logging()
+logger = logging.getLogger(__name__)
 
-app = FastAPI()
+app = FastAPI(title="Prospera Jobs API", version="1.0.0")
 
 # Configuración de CORS
 app.add_middleware(
@@ -32,4 +38,19 @@ app.include_router(jobs.router, prefix="/api")
 app.add_exception_handler(RequestValidationError, validation_exception_handler)
 app.add_exception_handler(HTTPException, http_exception_handler)
 app.add_exception_handler(Exception, generic_exception_handler)
+
+
+@app.on_event("startup")
+async def startup_event():
+    """Log de información de configuración al iniciar la aplicación."""
+    logger.info(
+        "Prospera Jobs API iniciada",
+        extra={
+            "environment": os.getenv("ENVIRONMENT", "development"),
+            "aws_region": os.getenv("AWS_REGION", "us-east-1"),
+            "dynamodb_table": os.getenv("DYNAMODB_TABLE_NAME", "jobs"),
+            "sqs_queue": os.getenv("SQS_QUEUE_NAME", "jobs-queue"),
+            "log_format": os.getenv("LOG_FORMAT", "text"),
+        }
+    )
 

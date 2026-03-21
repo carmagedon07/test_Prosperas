@@ -12,7 +12,7 @@ class FakeJobRepository:
 
 @pytest.fixture
 def fake_repo():
-    job = Job(user_id="user-1", report_type="ventas", job_id=uuid4())
+    job = Job(user_id="user-1", report_type="ventas", date_range="2024-01", format="PDF", job_id=uuid4())
     repo = FakeJobRepository({(str(job.job_id), job.user_id): job})
     return repo, job
 
