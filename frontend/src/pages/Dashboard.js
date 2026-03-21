@@ -13,7 +13,7 @@ function allJobsFinished(jobs) {
 }
 
 export default function Dashboard() {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
@@ -99,13 +99,15 @@ export default function Dashboard() {
                   >
                     🔍 Buscar por ID
                   </button>
-                  <button 
-                    className="btn btn-danger btn-sm"
-                    onClick={handleDeleteAll}
-                    style={{ height: 'fit-content' }}
-                  >
-                    🗑️ Limpiar Tabla
-                  </button>
+                  {user?.role === 'admin' && (
+                    <button 
+                      className="btn btn-danger btn-sm"
+                      onClick={handleDeleteAll}
+                      style={{ height: 'fit-content' }}
+                    >
+                      🗑️ Limpiar Tabla
+                    </button>
+                  )}
                 </div>
               </div>
               <h3 className="mb-3">Listado de solicitudes de reportes</h3>
