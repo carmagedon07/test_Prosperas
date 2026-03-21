@@ -2,7 +2,6 @@ import os
 import sys
 import time
 import random
-import threading
 import boto3
 import json
 from uuid import UUID
@@ -116,14 +115,9 @@ def worker_loop(queue_url: str):
                 except Exception:
                     job_id = body
 
-                # Disparar thread y NO esperar (no t.join())
+                # Procesar de forma síncrona: 1 job por worker a la vez
                 # El mensaje se elimina dentro de process_job al finalizar
-                t = threading.Thread(
-                    target=process_job,
-                    args=(job_id, msg["ReceiptHandle"], queue_url),
-                    daemon=True,
-                )
-                t.start()
+                process_job(job_id, msg["ReceiptHandle"], queue_url)
 
             except Exception as e:
                 print(f"[{instance_id}] Error despachando mensaje: {e}")
