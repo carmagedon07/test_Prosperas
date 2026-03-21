@@ -457,6 +457,23 @@ push a main
 
 ## 9. Variables de entorno
 
+Las variables de entorno permiten configurar el comportamiento de la aplicación sin modificar el código. Este proyecto utiliza un diseño **dual-mode** que funciona tanto en **desarrollo local con LocalStack** como en **producción con AWS real**.
+
+### Diferencias clave entre entornos
+
+- **Desarrollo local:** Los endpoints apuntan a LocalStack (`http://localstack:4566`), credenciales dummy (`test`/`test`), nombres cortos de recursos (`jobs`, `users`, `jobs-queue`)
+  
+- **Producción AWS:** Sin endpoints override (boto3 usa AWS real), credenciales IAM (sin `AWS_ACCESS_KEY_ID` en env vars, se usa IAM Role de ECS), nombres con prefijo (`prosperas-jobs`, `prosperas-users`)
+
+### Archivo de configuración
+
+- **Local:** `.env` (copiado de `.env.example`, no está en git)
+- **Producción:** Variables inyectadas directamente en ECS Task Definition (ver `infra/ecs_backend.tf` y `infra/ecs_workers.tf`)
+
+**Regla importante:** Si una variable termina en `_ENDPOINT` y está **vacía o ausente**, boto3 automáticamente usa AWS real. Si está **definida**, usa el endpoint especificado (LocalStack).
+
+### Tabla completa de variables
+
 | Variable | Descripción | Valor local | Valor producción |
 |---|---|---|---|
 | `AWS_REGION` | Región AWS | `us-east-1` | `us-east-1` |
