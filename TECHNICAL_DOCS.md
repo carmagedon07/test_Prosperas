@@ -371,17 +371,76 @@ terraform output -json cicd_secret_access_key  # Para GitHub Secrets (guarda seg
 
 ### GitHub Secrets requeridos
 
-Después de `terraform apply`, configura estos secrets en el repositorio GitHub:
+Después de `terraform apply`, necesitas configurar estos secrets en tu repositorio GitHub para que el CI/CD funcione.
 
-| Secret | Valor |
-|---|---|
-| `AWS_ACCESS_KEY_ID` | `terraform output cicd_access_key_id` |
-| `AWS_SECRET_ACCESS_KEY` | `terraform output -json cicd_secret_access_key` |
-| `ECR_BACKEND_REPO` | `terraform output ecr_backend_url` |
-| `ECR_WORKER_REPO` | `terraform output ecr_worker_url` |
-| `REACT_APP_API_URL` | `http://<terraform output backend_url>` |
-| `S3_BUCKET` | `terraform output s3_frontend_bucket` |
-| `CLOUDFRONT_DISTRIBUTION_ID` | `terraform output cloudfront_distribution_id` |
+#### Cómo agregar GitHub Secrets (paso a paso)
+
+1. **Ve a tu repositorio en GitHub**  
+   https://github.com/TU_USUARIO/test_Prosperas
+
+2. **Navega a Settings → Secrets and variables → Actions**  
+   O directo: `https://github.com/TU_USUARIO/test_Prosperas/settings/secrets/actions`
+
+3. **Click en "New repository secret"** para cada uno de los siguientes:
+
+#### Secrets a configurar
+
+| Secret | Obtener valor | Ejemplo |
+|---|---|---|
+| `AWS_ACCESS_KEY_ID` | `terraform output cicd_access_key_id` | `AKIA...` |
+| `AWS_SECRET_ACCESS_KEY` | `terraform output -json cicd_secret_access_key` (quita las comillas) | `wJalrXUt...` |
+| `ECR_BACKEND_REPO` | `terraform output ecr_backend_url` | `521434189536.dkr.ecr.us-east-1.amazonaws.com/prosperas-backend` |
+| `ECR_WORKER_REPO` | `terraform output ecr_worker_url` | `521434189536.dkr.ecr.us-east-1.amazonaws.com/prosperas-worker` |
+| `REACT_APP_API_URL` | `terraform output backend_url` (agregar `http://` al inicio) | `http://prosperas-alb-1234567890.us-east-1.elb.amazonaws.com` |
+| `S3_BUCKET` | `terraform output s3_frontend_bucket` | `prosperas-frontend-abcd1234` |
+| `CLOUDFRONT_DISTRIBUTION_ID` | `terraform output cloudfront_distribution_id` | `E1A2B3C4D5E6F7` |
+
+#### Script para obtener todos los valores
+
+```bash
+# Corre esto desde la carpeta infra/ para copiar y pegar fácilmente:
+echo "AWS_ACCESS_KEY_ID=$(terraform output -raw cicd_access_key_id)"
+echo "AWS_SECRET_ACCESS_KEY=$(terraform output -raw cicd_secret_access_key)"
+echo "ECR_BACKEND_REPO=$(terraform output -raw ecr_backend_url)"
+echo "ECR_WORKER_REPO=$(terraform output -raw ecr_worker_url)"
+echo "REACT_APP_API_URL=http://$(terraform output -raw backend_url)"
+echo "S3_BUCKET=$(terraform output -raw s3_frontend_bucket)"
+echo "CLOUDFRONT_DISTRIBUTION_ID=$(terraform output -raw cloudfront_distribution_id)"
+```
+
+#### Verificar que los secrets están configurados
+
+1. En GitHub: Settings → Secrets and variables → Actions
+2. Deberías ver 7 secrets listados (los valores están ocultos, solo se muestran los nombres)
+3. Si falta alguno, el pipeline fallará con error: `Error: Secret AWS_ACCESS_KEY_ID not found`
+
+#### Primer push manual (solo primera vez)
+
+Si el pipeline falla porque las imágenes no existen en ECR, haz este push manual:
+
+```bash
+# Desde la raíz del proyecto:
+
+# 1. Login a ECR
+aws ecr get-login-password --region us-east-1 | \
+  docker login --username AWS --password-stdin $(terraform output -raw ecr_backend_url | cut -d'/' -f1)
+
+# 2. Build y push backend
+cd backend
+docker build -t $(cd ../infra && terraform output -raw ecr_backend_url):latest .
+docker push $(cd ../infra && terraform output -raw ecr_backend_url):latest
+
+# 3. Build y push worker
+cd ../worker
+docker build -t $(cd ../infra && terraform output -raw ecr_worker_url):latest .
+docker push $(cd ../infra && terraform output -raw ecr_worker_url):latest
+
+# 4. Forzar nuevo deployment en ECS
+aws ecs update-service --cluster prosperas-cluster --service prosperas-backend --force-new-deployment
+aws ecs update-service --cluster prosperas-cluster --service prosperas-worker --force-new-deployment
+```
+
+Luego, cada push a `main` disparará el pipeline automáticamente.
 
 ### Pipeline CI/CD (GitHub Actions — `.github/workflows/deploy.yml`)
 
