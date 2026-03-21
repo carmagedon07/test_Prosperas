@@ -444,14 +444,52 @@ Luego, cada push a `main` disparará el pipeline automáticamente.
 
 ### Pipeline CI/CD (GitHub Actions — `.github/workflows/deploy.yml`)
 
+Cada push a la rama `main` dispara el siguiente flujo automatizado:
+
+```mermaid
+graph LR
+    A[🔍 Detect Changes<br/>Detecta qué cambió<br/>backend/frontend/worker] --> B[🧪 Run Tests<br/>pytest backend]
+    
+    B --> C1[🏗️ Build Backend<br/>docker build<br/>backend:latest]
+    B --> C2[🏗️ Build Frontend<br/>npm run build<br/>optimized bundle]
+    B --> C3[🏗️ Build Worker<br/>docker build<br/>worker:latest]
+    
+    C1 --> D1[📦 Push to ECR<br/>backend image]
+    C3 --> D3[📦 Push to ECR<br/>worker image]
+    
+    D1 --> E1[🚀 Deploy Backend<br/>ECS update-service<br/>prosperas-backend]
+    D3 --> E3[🚀 Deploy Worker<br/>ECS update-service<br/>prosperas-worker]
+    C2 --> E2[🚀 Deploy Frontend<br/>S3 sync + CloudFront<br/>invalidation]
+    
+    E1 --> F[✅ Health Check<br/>ALB /health endpoint<br/>Wait for stable]
+    E3 --> F
+    E2 --> F
+    
+    F --> G[✨ Deployment Complete]
+    
+    style A fill:#2d5f8d
+    style B fill:#5d9c59
+    style C1 fill:#8b4513
+    style C2 fill:#8b4513
+    style C3 fill:#8b4513
+    style D1 fill:#ff8c42
+    style D3 fill:#ff8c42
+    style E1 fill:#8b5cf6
+    style E2 fill:#8b5cf6
+    style E3 fill:#8b5cf6
+    style F fill:#10b981
+    style G fill:#059669
 ```
-push a main
-    │
-    ├─ [test]        → pytest del backend
-    ├─ [build-push]  → build backend + worker Docker → push a ECR
-    ├─ [deploy-ecs]  → aws ecs update-service (backend + worker) → wait stable
-    └─ [deploy-fe]   → npm run build → s3 sync → CloudFront invalidation
-```
+
+**Etapas del pipeline:**
+
+1. **Detect Changes** — Analiza qué archivos cambiaron (backend/, frontend/, worker/, infra/)
+2. **Run Tests** — Ejecuta pytest del backend antes de construir
+3. **Build** — Construye imágenes Docker (backend, worker) y bundle de React (frontend) en paralelo
+4. **Push to ECR** — Sube las imágenes Docker al registro ECR de AWS
+5. **Deploy** — Actualiza servicios ECS (backend, worker) y sube archivos a S3/CloudFront (frontend) en paralelo
+6. **Health Check** — Verifica que el ALB responde 200 en `/health` antes de finalizar
+7. **Complete** — Deployment exitoso, aplicación actualizada en producción
 
 ---
 
