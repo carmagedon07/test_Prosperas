@@ -7,6 +7,7 @@ on:
   pull_request:
     branches:
       - '**'
+  workflow_dispatch:  # Permite ejecutar manualmente desde GitHub UI
 
 permissions:
   id-token: write
