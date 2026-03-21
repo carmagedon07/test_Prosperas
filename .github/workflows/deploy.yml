@@ -18,7 +18,7 @@ env:
   AWS_REGION: us-east-1
   ECR_REGISTRY: 521434189536.dkr.ecr.us-east-1.amazonaws.com
   ECS_CLUSTER: prospera-cluster
-  ALB_DNS: prospera-alb-246038476.us-east-1.elb.amazonaws.com
+  ALB_DNS: prospera-alb-1976320130.us-east-1.elb.amazonaws.com
 
 jobs:
   # ========================================================================
