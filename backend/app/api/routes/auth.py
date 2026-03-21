@@ -20,6 +20,7 @@ class RegisterResponse(BaseModel):
 
 class TokenResponse(BaseModel):
     access_token: str
+    role: str
     token_type: str = "bearer"
 
 # Initialize user repository
@@ -46,4 +47,4 @@ def login(request: LoginRequest):
     if not user:
         raise HTTPException(status_code=401, detail="Invalid credentials")
     token = create_access_token(user_id=user['user_id'])
-    return TokenResponse(access_token=token)
+    return TokenResponse(access_token=token, role=user.get('role', 'user'))
