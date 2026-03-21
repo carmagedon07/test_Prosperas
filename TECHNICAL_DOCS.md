@@ -182,6 +182,8 @@ sequenceDiagram
 - Docker Desktop instalado y corriendo
 - `docker compose` v2
 
+**Nota:** No necesitas instalar LocalStack por separado. Viene como servicio en el `docker-compose.yml` (imagen `localstack/localstack:3.0`) y se levanta automáticamente junto con backend, workers y frontend.
+
 ### Pasos
 
 ```bash
